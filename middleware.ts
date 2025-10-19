@@ -1,0 +1,92 @@
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
+
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next()
+  
+  // Create a Supabase client using the server client
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get: (name) => req.cookies.get(name)?.value,
+        set: (name, value, options) => {
+          res.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+        },
+        remove: (name, options) => {
+          res.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+        },
+      },
+    }
+  )
+
+  // First try to get authenticated user (more secure)
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  
+  // If there's a user error or no user, we don't have an authenticated user
+  const hasAuthenticatedUser = !userError && !!user
+  
+  // Only get session if we have an authenticated user (to minimize warnings)
+  let session = null
+  if (hasAuthenticatedUser) {
+    const { data: sessionData } = await supabase.auth.getSession()
+    session = sessionData.session
+  }
+
+  // Define protected paths
+  const adminPaths = ['/admin']
+  // Combine buyer/seller paths as general authenticated paths
+  const authenticatedPaths = ['/seller', '/artwork/create', '/buyer', '/cart', '/account', '/profile']
+
+  // Get current URL path
+  const url = req.nextUrl.pathname
+
+  // Check if path requires authentication
+  const isAdminPath = adminPaths.some(path => url.startsWith(path))
+  const isAuthenticatedPath = authenticatedPaths.some(path => url.startsWith(path))
+  
+  // Redirect to login if not authenticated for protected paths
+  if ((isAdminPath || isAuthenticatedPath) && !hasAuthenticatedUser) {
+    const redirectUrl = new URL('/auth/login', req.url)
+    redirectUrl.searchParams.set('redirectedFrom', req.nextUrl.pathname)
+    return NextResponse.redirect(redirectUrl)
+  }
+
+  // If user is authenticated, check for admin path access
+  if (hasAuthenticatedUser && isAdminPath) {
+    // Fetch user role from DB
+    const { data: userData } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    const role = userData?.role
+
+    // Redirect non-admins away from admin paths
+    if (role !== 'admin') {
+      return NextResponse.redirect(new URL('/', req.url))
+    }
+  }
+  
+  // All other authenticated paths are accessible if logged in
+
+  return res
+}
+
+// Define which paths this middleware should run on
+export const config = {
+  matcher: [
+    '/((?!api|_next/static|_next/image|favicon.ico|assets).*)',
+  ],
+} 
