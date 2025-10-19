@@ -5,7 +5,7 @@ import { ArtworkCard } from '@/components/artwork/artwork-card';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/hooks/use-auth';
 import type { ArtworkWithUser } from '@/lib/types';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+// Tabs removed; gallery renders a single grid based on auth state
 
 type FilterTab = 'all' | 'my-artworks';
 
@@ -72,8 +72,9 @@ export function ClientGallery() {
       }
     }
     
+    // Wait for auth to resolve; rerun when user changes
     fetchArtworks();
-  }, []);
+  }, [user?.id]);
   
   if (loading) {
     return (

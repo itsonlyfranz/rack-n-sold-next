@@ -168,10 +168,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Upload image to decentralized storage so explorers like OpenSea/Polygonscan can render it
+    // If we pass a File/Blob, thirdweb will upload it to its configured storage (IPFS)
+    let imageSource: File | string = artwork.image_url;
+    try {
+      const imgResp = await fetch(artwork.image_url);
+      if (imgResp.ok) {
+        const contentType = imgResp.headers.get('content-type') || 'image/png';
+        const arrayBuffer = await imgResp.arrayBuffer();
+        // Use web File API available in Next.js runtime (Node 18+)
+        imageSource = new File([new Uint8Array(arrayBuffer)], `${artwork.title || 'artwork'}.png`, { type: contentType });
+      }
+    } catch (e) {
+      // Fallback to direct URL if fetch/upload fails; the NFT will still mint
+      imageSource = artwork.image_url;
+    }
+
     const metadata = {
       name: artwork.title,
       description: artwork.description || `${artwork.title} - Created on Rack N Sold`,
-      image: artwork.image_url,
+      image: imageSource,
       properties: {
         artist: artwork.artist || 'Unknown',
         artworkId: artwork.id,
