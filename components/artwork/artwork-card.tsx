@@ -31,6 +31,7 @@ export function ArtworkCard({ artwork, showAuthor = true }: ArtworkCardProps) {
   const { id, title, price, image_url, user, status, description, artist } = artwork
   const [isLoading, setIsLoading] = useState(false)
   const [isMinting, setIsMinting] = useState(false)
+  const [isRequesting, setIsRequesting] = useState(false)
   const [imgError, setImgError] = useState(false)
   const { user: currentUser } = useAuth()
   const { addItem, isInCart } = useCartStore()
@@ -85,6 +86,8 @@ export function ArtworkCard({ artwork, showAuthor = true }: ArtworkCardProps) {
   // Check if artwork is sold based on status field
   const sold = status === 'sold'
   const isDraft = status === 'draft'
+  const isPendingMint = status === 'pending_mint'
+  const isListedOnOpenSea = status === 'listed_for_sale'
   
   // Use a placeholder if the image_url is null or empty
   const imageSource = image_url && image_url.trim() !== '' 
@@ -216,6 +219,51 @@ export function ArtworkCard({ artwork, showAuthor = true }: ArtworkCardProps) {
     }
   };
   
+  // Handle mint request (without wallet)
+  const handleRequestMint = async () => {
+    if (!currentUser) {
+      alert("Please sign in to request minting");
+      return;
+    }
+
+    if (status !== 'draft') {
+      alert(`Artwork cannot be minted. Current status: ${status}`);
+      return;
+    }
+
+    console.log(`ArtworkCard (${title}): Requesting mint approval from admin...`);
+    setIsRequesting(true);
+
+    try {
+      const response = await fetch('/api/mint/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          artworkId: id
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit mint request');
+      }
+
+      console.log(`ArtworkCard (${title}): Mint request submitted successfully`, data);
+      alert(data.message || 'Mint request submitted successfully! An admin will review it shortly.');
+      
+      // Refresh the page to show updated status
+      window.location.reload();
+
+    } catch (error) {
+      console.error(`ArtworkCard (${title}): Error requesting mint:`, error);
+      alert(`Request Failed: ${error instanceof Error ? error.message : "An unknown error occurred."}`);
+      setIsRequesting(false);
+    }
+  };
+  
   const inCart = currentUser ? isInCart(id) : false
   const isOwner = currentUser?.id === artwork.user_id
   
@@ -234,9 +282,9 @@ export function ArtworkCard({ artwork, showAuthor = true }: ArtworkCardProps) {
   return (
     <div className="card group relative overflow-hidden bg-gray-850 rounded-lg shadow-lg border border-gray-700/50 transition-all duration-300 hover:shadow-violet-500/10 hover:border-violet-500/30">
       {/* --- Debug UI Display --- */}
-      <div className="absolute top-0 left-0 bg-black/70 text-white text-[10px] p-1 z-10 max-w-full overflow-hidden whitespace-nowrap">
+      {/* <div className="absolute top-0 left-0 bg-black/70 text-white text-[10px] p-1 z-10 max-w-full overflow-hidden whitespace-nowrap">
         {debugInfo}
-      </div>
+      </div> */}
       {/* --- End Debug UI Display --- */}
       
       <div className="relative aspect-square overflow-hidden">
@@ -265,6 +313,25 @@ export function ArtworkCard({ artwork, showAuthor = true }: ArtworkCardProps) {
           <div className="absolute top-2 right-2">
             <span className="px-2 py-1 bg-orange-500 text-white text-xs font-medium rounded-md shadow">
               Draft
+            </span>
+          </div>
+        )}
+        
+        {isPendingMint && !sold && (
+          <div className="absolute top-2 right-2">
+            <span className="px-2 py-1 bg-yellow-500 text-white text-xs font-medium rounded-md shadow">
+              Mint Pending
+            </span>
+          </div>
+        )}
+        
+        {isListedOnOpenSea && !sold && (
+          <div className="absolute top-2 right-2">
+            <span className="px-2 py-1 bg-blue-500 text-white text-xs font-medium rounded-md shadow flex items-center gap-1">
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+              </svg>
+              Listed on OpenSea
             </span>
           </div>
         )}
@@ -317,17 +384,22 @@ export function ArtworkCard({ artwork, showAuthor = true }: ArtworkCardProps) {
               
               {isDraft && (
                 <button
-                  onClick={handleMintNFT}
-                  disabled={isMinting || !isWalletConnected || !isPolygonNetwork}
+                  onClick={handleRequestMint}
+                  disabled={isRequesting}
                   className="px-3 py-1.5 rounded-md text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={
-                    !isWalletConnected ? "Connect wallet to mint" : 
-                    !isPolygonNetwork ? `Switch to Polygon network (Chain ID: ${polygon.id})` : 
-                    status !== 'draft' ? `Artwork already minted (${status})` : 
-                    "Click to mint your NFT"
-                  } 
+                  title="Request admin approval to mint your NFT"
                 >
-                  {isMinting ? 'Minting...' : 'Mint NFT'}
+                  {isRequesting ? 'Requesting...' : 'Request Mint'}
+                </button>
+              )}
+              
+              {isPendingMint && (
+                <button
+                  disabled
+                  className="px-3 py-1.5 rounded-md text-sm font-medium bg-yellow-600 text-white cursor-not-allowed opacity-75"
+                  title="Mint request pending admin approval"
+                >
+                  Mint Pending
                 </button>
               )}
             </div>

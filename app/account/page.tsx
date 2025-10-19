@@ -21,8 +21,8 @@ import { BackButton } from '@/components/common/back-button' // Import the new c
 
 // Server Component for the page
 export default async function AccountPage() {
-  // Await cookies() before using it - prioritize runtime fix over linter
-  const cookieStore = cookies()
+  // Await cookies() before using it - Next.js 15 requirement
+  const cookieStore = await cookies()
 
   // Use createServerClient for Server Component data fetching
   const supabase = createServerClient(

@@ -47,10 +47,10 @@ export function Header() {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex md:items-center md:space-x-6">
             <Link
-              href="/marketplace"
+              href="/gallery"
               className="text-sm text-gray-300 hover:text-white"
             >
-              NFT Marketplace
+              Gallery
             </Link>
             {/* Temporarily hidden */}
             {/* <Link
@@ -65,6 +65,16 @@ export function Header() {
             >
               Artists
             </Link>
+            
+            {/* Admin Dashboard Link - Only visible to admins */}
+            {user?.role === 'admin' && (
+              <Link
+                href="/admin/mint-requests"
+                className="text-sm text-violet-400 hover:text-violet-300 font-medium"
+              >
+                Admin Dashboard
+              </Link>
+            )}
             {/* Combined user account and wallet display */}
             {user || activeAccount ? (
               <div className="flex items-center space-x-2 ml-2">
@@ -136,15 +146,6 @@ export function Header() {
                     >
                       Profile
                     </Link>
-                    {user && (
-                      <Link
-                        href="/account"
-                        onClick={closeMenu}
-                        className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
-                      >
-                        Account
-                      </Link>
-                    )}
                     <Link
                       href="/orders"
                       onClick={closeMenu}
@@ -180,6 +181,7 @@ export function Header() {
                     )}
                   </div>
                 )}
+                </div>
               </div>
             ) : (
               <div className="flex items-center space-x-2">
@@ -288,11 +290,11 @@ export function Header() {
           <div className="mt-3 md:hidden">
             <nav className="flex flex-col space-y-2 pb-3 pt-2">
               <Link
-                href="/marketplace"
+                href="/gallery"
                 onClick={closeMenu}
                 className="px-3 py-2 text-base text-gray-300 hover:bg-gray-800 hover:text-white"
               >
-                NFT Marketplace
+                Gallery
               </Link>
               {/* Temporarily hidden */}
               {/* <Link

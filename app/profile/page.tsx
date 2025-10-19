@@ -1,10 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useAuth } from '@/lib/hooks/use-auth'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -14,29 +17,31 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { format } from 'date-fns'
 import ChangePasswordForm from '@/components/account/change-password-form'
-import { Loader2 } from 'lucide-react'
+import { Loader2, ArrowLeft, Camera, Edit2, Save, X, Wallet as WalletIcon } from 'lucide-react'
 import { MetaMaskProvider, useSDK } from '@metamask/sdk-react'
+import Image from 'next/image'
 
 export default function ProfilePage() {
   // Wrap the content in the MetaMask provider
   return (
     <MetaMaskProvider
-      debug={process.env.NODE_ENV === 'development'}
+      debug={false} // Disable debug to reduce console logs and improve performance
       sdkOptions={{
         dappMetadata: {
           name: 'Rack N Sold',
           url: typeof window !== 'undefined' ? window.location.origin : '',
         },
         checkInstallationImmediately: false,
+        checkInstallationOnAllCalls: false, // Don't check on every call
         // Add communication options to prevent encryption errors
         communicationServerUrl: process.env.NEXT_PUBLIC_METAMASK_COMM_SERVER_URL || 'https://metamask-sdk-socket.metafi.codefi.network',
         useDeeplink: false,
         storage: {
-          enabled: true,
+          enabled: false, // Disable storage to speed up initialization
         },
         _source: 'rack-n-sold',
         forceInjectProvider: false,
-        injectProvider: true,
+        injectProvider: false, // Don't inject provider to speed up load
         transports: ['websocket', 'polling'],
       }}
     >
@@ -54,28 +59,228 @@ function ProfileContent() {
   
   // State for managing the update process
   const [isUpdating, setIsUpdating] = useState(false)
+  
+  // Profile editing state
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [editedProfile, setEditedProfile] = useState({
+    username: '',
+    name: '',
+    phone: '',
+    address: ''
+  })
+  
+  // Profile picture upload state
+  const [uploadingPicture, setUploadingPicture] = useState(false)
+  const [picturePreview, setPicturePreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // Wallet balance state
+  const [walletBalance, setWalletBalance] = useState<string | null>(null)
+  const [loadingBalance, setLoadingBalance] = useState(false)
 
-  // Fallback: if auth loading takes too long, show the profile anyway
+  // Fallback: if auth loading takes too long, force refresh or show error
   useEffect(() => {
+    // Only run this check when auth is loading
+    if (!isAuthLoading) return
+
     const timeout = setTimeout(() => {
-      if (isAuthLoading && !user) {
-        console.warn('Auth check taking too long on profile page, forcing show')
-        setForceShow(true)
+      if (isAuthLoading) {
+        // Auth is stuck, try to recover
+        if (!user) {
+          // No user data after 3 seconds, redirect to login
+          router.push('/auth/login?message=Session expired. Please sign in again.')
+        } else {
+          // Have user but still loading, force show the profile
+          setForceShow(true)
+        }
       }
-    }, 3000) // Show profile after 3 seconds if still loading
+    }, 3000) // Wait 3 seconds before taking action
 
     return () => clearTimeout(timeout)
-  }, [isAuthLoading, user])
+    // Only depend on isAuthLoading to avoid dependency array size changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthLoading])
   const [updateError, setUpdateError] = useState<string | null>(null)
   // Add state for disconnection process
   const [isDisconnecting, setIsDisconnecting] = useState(false)
 
   useEffect(() => {
-    // Redirect if finished loading and user does not exist
+    // Only redirect if auth check is complete AND no user found
+    // Don't redirect during loading to avoid race conditions
     if (!isAuthLoading && !user) {
-      router.push('/auth/login')
+      router.push('/auth/login?redirectedFrom=/profile')
     }
   }, [isAuthLoading, user, router])
+
+  // Initialize edited profile when user loads
+  useEffect(() => {
+    if (user) {
+      setEditedProfile({
+        username: user.username || '',
+        name: user.name || '',
+        phone: user.phone || '',
+        address: user.address || ''
+      })
+    }
+  }, [user])
+
+  // Fetch wallet balance when account is connected
+  useEffect(() => {
+    const fetchWalletBalance = async () => {
+      if (account && chainId) {
+        setLoadingBalance(true)
+        try {
+          // Use window.ethereum to get balance
+          if (typeof window !== 'undefined' && (window as any).ethereum) {
+            const ethereum = (window as any).ethereum
+            const balance = await ethereum.request({
+              method: 'eth_getBalance',
+              params: [account, 'latest']
+            })
+            // Convert from hex to decimal and then to ETH
+            const balanceInWei = parseInt(balance as string, 16)
+            const balanceInEth = (balanceInWei / 1e18).toFixed(4)
+            setWalletBalance(balanceInEth)
+          }
+        } catch (error) {
+          console.error('Error fetching balance:', error)
+        } finally {
+          setLoadingBalance(false)
+        }
+      }
+    }
+    fetchWalletBalance()
+  }, [account, chainId])
+
+  // Handle profile picture upload
+  const handleProfilePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !user) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Invalid file',
+        description: 'Please upload an image file',
+        variant: 'destructive'
+      })
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'Please upload an image smaller than 5MB',
+        variant: 'destructive'
+      })
+      return
+    }
+
+    setUploadingPicture(true)
+
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${user.id}/profile-${Date.now()}.${fileExt}`
+
+      // Upload to Supabase storage
+      const { error: uploadError } = await supabase.storage
+        .from('artwork_images')  // Using existing bucket
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: true
+        })
+
+      if (uploadError) throw uploadError
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('artwork_images')
+        .getPublicUrl(fileName)
+
+      // Update user profile with new picture URL
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ profile_picture: publicUrl })
+        .eq('id', user.id)
+
+      if (updateError) throw updateError
+
+      setPicturePreview(publicUrl)
+      toast({
+        title: 'Success!',
+        description: 'Profile picture updated successfully',
+      })
+
+      // Refresh the page to show new picture
+      router.refresh()
+    } catch (error) {
+      console.error('Error uploading picture:', error)
+      toast({
+        title: 'Upload failed',
+        description: 'Failed to upload profile picture',
+        variant: 'destructive'
+      })
+    } finally {
+      setUploadingPicture(false)
+    }
+  }
+
+  // Handle profile edit mode toggle
+  const toggleEditMode = () => {
+    if (isEditMode) {
+      // Cancel - reset to original values
+      if (user) {
+        setEditedProfile({
+          username: user.username || '',
+          name: user.name || '',
+          phone: user.phone || '',
+          address: user.address || ''
+        })
+      }
+    }
+    setIsEditMode(!isEditMode)
+  }
+
+  // Handle profile save
+  const handleSaveProfile = async () => {
+    if (!user) return
+
+    setIsSaving(true)
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          username: editedProfile.username,
+          name: editedProfile.name,
+          phone: editedProfile.phone,
+          address: editedProfile.address,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id)
+
+      if (error) throw error
+
+      toast({
+        title: 'Success!',
+        description: 'Profile updated successfully',
+      })
+
+      setIsEditMode(false)
+      router.refresh()
+    } catch (error) {
+      console.error('Error saving profile:', error)
+      toast({
+        title: 'Save failed',
+        description: 'Failed to update profile',
+        variant: 'destructive'
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   // Add a function to reset MetaMask connections
   const resetMetaMaskConnection = async () => {
@@ -278,19 +483,7 @@ function ProfileContent() {
 
   // Redirect to login if not authenticated
   if (!user) {
-    router.push('/auth/login?redirectedFrom=/profile')
-    return (
-      <MainLayout>
-        <div className="container mx-auto py-8">
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-              <p className="text-gray-400">Redirecting to login...</p>
-            </div>
-          </div>
-        </div>
-      </MainLayout>
-    )
+    return null; // The useEffect will handle the redirect
   }
 
   // Determine display name based on available fields
@@ -301,12 +494,22 @@ function ProfileContent() {
     <MainLayout>
       <div className="container mx-auto py-8">
         <div className="max-w-4xl mx-auto space-y-8">
+          {/* Back Button */}
+          <Button 
+            variant="ghost" 
+            onClick={() => router.back()} 
+            className="mb-4 -ml-4"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+
           {/* Debug info - remove in production */}
-          {process.env.NODE_ENV === 'development' && (
+          {/* {process.env.NODE_ENV === 'development' && (
             <div className="mb-4 p-2 bg-gray-900 text-xs text-gray-400 rounded">
               Debug: isAuthLoading={isAuthLoading.toString()}, user={user ? 'exists' : 'null'}, forceShow={forceShow.toString()}, authError={authError || 'none'}
             </div>
-          )}
+          )} */}
           
           {/* Show auth error if there's one */}
           {authError && (
@@ -330,14 +533,57 @@ function ProfileContent() {
               {/* Profile Header */}
               <Card>
                 <CardHeader className="flex flex-row items-center space-x-4 pb-4">
-                  <Avatar className="h-16 w-16">
-                    {user.profile_picture && <AvatarImage src={user.profile_picture} alt={displayName} />}
-                    <AvatarFallback className="text-2xl">{displayInitial}</AvatarFallback>
-                  </Avatar>
+                  <div className="relative">
+                    <Avatar className="h-20 w-20">
+                      {(picturePreview || user.profile_picture) && (
+                        <AvatarImage src={picturePreview || user.profile_picture || undefined} alt={displayName} />
+                      )}
+                      <AvatarFallback className="text-2xl">{displayInitial}</AvatarFallback>
+                    </Avatar>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingPicture}
+                      className="absolute bottom-0 right-0 p-1.5 rounded-full bg-violet-600 text-white hover:bg-violet-700 transition-colors shadow-lg"
+                      title="Change profile picture"
+                    >
+                      {uploadingPicture ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Camera className="h-3 w-3" />
+                      )}
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProfilePictureUpload}
+                      className="hidden"
+                    />
+                  </div>
                   <div className="flex-1">
                     <CardTitle className="text-2xl">{displayName}</CardTitle>
                     <CardDescription>{user.email}</CardDescription>
                     <Badge variant="outline" className="mt-1 capitalize">{user.role}</Badge>
+                  </div>
+                  <div>
+                    <Button
+                      variant={isEditMode ? "outline" : "default"}
+                      size="sm"
+                      onClick={toggleEditMode}
+                      disabled={isSaving}
+                    >
+                      {isEditMode ? (
+                        <>
+                          <X className="mr-2 h-4 w-4" />
+                          Cancel
+                        </>
+                      ) : (
+                        <>
+                          <Edit2 className="mr-2 h-4 w-4" />
+                          Edit Profile
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </CardHeader>
               </Card>
@@ -345,48 +591,122 @@ function ProfileContent() {
               {/* Profile Details */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Profile Details</CardTitle>
-                  <CardDescription>Your personal information.</CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Profile Details</CardTitle>
+                      <CardDescription>Your personal information.</CardDescription>
+                    </div>
+                    {isEditMode && (
+                      <Button
+                        onClick={handleSaveProfile}
+                        disabled={isSaving}
+                        size="sm"
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="mr-2 h-4 w-4" />
+                            Save Changes
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Username</span>
-                    <span>{user.username || '-'}</span>
+                <CardContent className="space-y-4">
+                  {/* Username */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <Label className="text-muted-foreground">Username</Label>
+                    {isEditMode ? (
+                      <Input
+                        value={editedProfile.username}
+                        onChange={(e) => setEditedProfile({...editedProfile, username: e.target.value})}
+                        className="md:col-span-2"
+                        placeholder="Enter username"
+                      />
+                    ) : (
+                      <span className="md:col-span-2">{user.username || '-'}</span>
+                    )}
                   </div>
                   <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Full Name</span>
-                    <span>{user.name || '-'}</span>
+                  
+                  {/* Full Name */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <Label className="text-muted-foreground">Full Name</Label>
+                    {isEditMode ? (
+                      <Input
+                        value={editedProfile.name}
+                        onChange={(e) => setEditedProfile({...editedProfile, name: e.target.value})}
+                        className="md:col-span-2"
+                        placeholder="Enter full name"
+                      />
+                    ) : (
+                      <span className="md:col-span-2">{user.name || '-'}</span>
+                    )}
                   </div>
                   <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Email</span>
-                    <span>{user.email}</span>
+                  
+                  {/* Email (read-only) */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <Label className="text-muted-foreground">Email</Label>
+                    <span className="md:col-span-2">{user.email}</span>
                   </div>
                   <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Phone</span>
-                    <span>{user.phone || '-'}</span>
+                  
+                  {/* Phone */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <Label className="text-muted-foreground">Phone</Label>
+                    {isEditMode ? (
+                      <Input
+                        value={editedProfile.phone}
+                        onChange={(e) => setEditedProfile({...editedProfile, phone: e.target.value})}
+                        className="md:col-span-2"
+                        placeholder="Enter phone number"
+                      />
+                    ) : (
+                      <span className="md:col-span-2">{user.phone || '-'}</span>
+                    )}
                   </div>
                   <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Address</span>
-                    <span>{user.address || '-'}</span>
+                  
+                  {/* Address */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <Label className="text-muted-foreground">Address</Label>
+                    {isEditMode ? (
+                      <Input
+                        value={editedProfile.address}
+                        onChange={(e) => setEditedProfile({...editedProfile, address: e.target.value})}
+                        className="md:col-span-2"
+                        placeholder="Enter address"
+                      />
+                    ) : (
+                      <span className="md:col-span-2">{user.address || '-'}</span>
+                    )}
                   </div>
                   <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Role</span>
-                    <span className="capitalize">{user.role}</span>
+                  
+                  {/* Role (read-only) */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <Label className="text-muted-foreground">Role</Label>
+                    <span className="md:col-span-2 capitalize">{user.role}</span>
                   </div>
                   <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Joined</span>
-                    <span>{user.created_at ? format(new Date(user.created_at), 'PPP') : '-'}</span>
+                  
+                  {/* Joined (read-only) */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <Label className="text-muted-foreground">Joined</Label>
+                    <span className="md:col-span-2">{user.created_at ? format(new Date(user.created_at), 'PPP') : '-'}</span>
                   </div>
                   <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Status</span>
-                    <span className="capitalize">{user.status || 'Active'}</span>
+                  
+                  {/* Status (read-only) */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <Label className="text-muted-foreground">Status</Label>
+                    <span className="md:col-span-2 capitalize">{user.status || 'Active'}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -396,63 +716,138 @@ function ProfileContent() {
             <TabsContent value="wallet" className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Blockchain Wallet</CardTitle>
-                  <CardDescription>Connect your crypto wallet to view and manage your NFTs.</CardDescription>
+                  <div className="flex items-center gap-2">
+                    <WalletIcon className="h-5 w-5" />
+                    <div>
+                      <CardTitle>Blockchain Wallet</CardTitle>
+                      <CardDescription>Connect your crypto wallet to view and manage your NFTs.</CardDescription>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  {user.wallet_address ? (
+                  {user.wallet_address || account ? (
                     <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Status</span>
-                        <Badge variant="default" className="bg-green-500 hover:bg-green-600">Connected</Badge>
+                      {/* Status */}
+                      <div className="flex justify-between items-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                        <span className="font-medium">Status</span>
+                        <Badge variant="default" className="bg-green-500 hover:bg-green-600">
+                          ● Connected
+                        </Badge>
                       </div>
+                      
+                      {/* Balance Display */}
+                      {account && (
+                        <>
+                          <Separator />
+                          <div className="p-4 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 rounded-lg">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-medium text-muted-foreground">Wallet Balance</span>
+                              {loadingBalance ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : walletBalance ? (
+                                <div className="text-right">
+                                  <p className="text-2xl font-bold">{walletBalance} ETH</p>
+                                  <p className="text-xs text-muted-foreground">Ethereum</p>
+                                </div>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">-</span>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                      
                       <Separator />
-                      <div className="flex justify-between items-center">
+                      
+                      {/* Address */}
+                      <div className="flex justify-between items-start">
                         <span className="text-muted-foreground">Address</span>
-                        <span className="font-mono text-sm break-all">{user.wallet_address}</span>
+                        <div className="text-right">
+                          <span className="font-mono text-sm break-all">
+                            {user.wallet_address || account}
+                          </span>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {account ? `${account.slice(0, 6)}...${account.slice(-4)}` : ''}
+                          </p>
+                        </div>
                       </div>
+                      
+                      {/* Network/Chain Info */}
+                      {chainId && (
+                        <>
+                          <Separator />
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Network</span>
+                            <Badge variant="outline">
+                              Chain ID: {parseInt(chainId, 16)}
+                            </Badge>
+                          </div>
+                        </>
+                      )}
+                      
                       {user.wallet_connected_at && (
                         <>
                           <Separator />
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Connected Since</span>
-                            <span>{format(new Date(user.wallet_connected_at), 'Pp')}</span>
+                            <span className="text-sm">{format(new Date(user.wallet_connected_at), 'Pp')}</span>
                           </div>
                         </>
                       )}
-                      {/* Disconnect Button now has the onClick handler */}
-                      <Button 
-                        variant="outline" 
-                        className="w-full mt-4"
-                        onClick={handleDisconnectWallet}
-                        disabled={isDisconnecting}
-                      >
-                        {isDisconnecting ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Disconnecting...
-                          </>
-                        ) : (
-                          'Disconnect Wallet'
-                        )}
-                      </Button>
+                      
+                      <Separator />
+                      
+                      {/* Action Buttons */}
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          className="flex-1"
+                          onClick={handleDisconnectWallet}
+                          disabled={isDisconnecting}
+                        >
+                          {isDisconnecting ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Disconnecting...
+                            </>
+                          ) : (
+                            'Disconnect Wallet'
+                          )}
+                        </Button>
+                      </div>
+                      
                       {updateError && (
                         <p className="text-sm text-red-500 mt-2">Error: {updateError}</p>
                       )}
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Status</span>
-                        <Badge variant="destructive">Not Connected</Badge>
+                    <div className="space-y-4 text-center py-8">
+                      <div className="mx-auto w-16 h-16 rounded-full bg-violet-100 dark:bg-violet-900/20 flex items-center justify-center">
+                        <WalletIcon className="h-8 w-8 text-violet-600" />
                       </div>
-                      <p className="text-muted-foreground">Link your crypto wallet to view associated NFTs.</p>
+                      <div>
+                        <h3 className="font-semibold mb-2">No Wallet Connected</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Connect your crypto wallet to view your balance, manage NFTs, and interact with the blockchain.
+                        </p>
+                      </div>
                       <Button 
                         onClick={handleConnectAndLinkWallet} 
                         disabled={isUpdating}
-                        className="w-full"
+                        size="lg"
+                        className="w-full sm:w-auto"
                       >
-                        {isUpdating ? 'Connecting...' : 'Connect Wallet'}
+                        {isUpdating ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Connecting...
+                          </>
+                        ) : (
+                          <>
+                            <WalletIcon className="mr-2 h-4 w-4" />
+                            Connect Wallet
+                          </>
+                        )}
                       </Button>
                       
                       {updateError && (
@@ -463,7 +858,6 @@ function ProfileContent() {
                               onClick={handleResetConnection}
                               variant="outline" 
                               size="sm"
-                              className="w-full mt-2"
                             >
                               Reset Connection and Try Again
                             </Button>
@@ -485,6 +879,38 @@ function ProfileContent() {
                 </CardHeader>
                 <CardContent>
                   <ChangePasswordForm />
+                </CardContent>
+              </Card>
+              
+              {/* Quick Links Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick Links</CardTitle>
+                  <CardDescription>Shortcuts to frequently used pages.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Link href="/account/settings" className="text-blue-600 hover:text-blue-800 hover:underline">
+                    Account Settings
+                  </Link>
+                  {user.role === 'seller' && (
+                    <>
+                      <Link href="/account/artworks" className="text-blue-600 hover:text-blue-800 hover:underline">
+                        My Artworks
+                      </Link>
+                      <Link href="/account/upload" className="text-blue-600 hover:text-blue-800 hover:underline">
+                        Upload Artwork
+                      </Link>
+                    </>
+                  )}
+                  <Link href="/account/purchases" className="text-blue-600 hover:text-blue-800 hover:underline">
+                    Purchase History
+                  </Link>
+                  <Link href="/orders" className="text-blue-600 hover:text-blue-800 hover:underline">
+                    Orders
+                  </Link>
+                  <Link href="/gallery" className="text-blue-600 hover:text-blue-800 hover:underline">
+                    Gallery
+                  </Link>
                 </CardContent>
               </Card>
             </TabsContent>

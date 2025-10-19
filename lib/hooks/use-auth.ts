@@ -134,11 +134,18 @@ export function useAuth() {
         } else {
           setUser(null);
         }
-      } catch (err) {
+      } catch (err: any) {
         if (!isMounted) return;
-        console.error('Error checking user authentication:', err);
-        setError('Failed to check user authentication');
-        setUser(null);
+        // AuthSessionMissingError is expected when no user is logged in
+        if (err?.message?.includes('session_missing') || err?.name === 'AuthSessionMissingError') {
+          // This is normal - no user is logged in
+          setUser(null);
+        } else {
+          // Actual error
+          console.error('Error checking user authentication:', err);
+          setError('Failed to check user authentication');
+          setUser(null);
+        }
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -209,7 +216,10 @@ export function useAuth() {
       router.refresh(); // Refresh server components if needed
       return true;
     } catch (err: any) {
-      console.error('Complete sign in error:', err);
+      // Only log unexpected errors (not invalid credentials)
+      if (process.env.NODE_ENV === 'development' && !err?.message?.includes('Invalid login credentials')) {
+        console.error('Complete sign in error:', err);
+      }
       setError(err.message || 'Failed to sign in');
       setIsLoading(false); // Reset loading on error
       return false;
@@ -295,7 +305,10 @@ export function useAuth() {
       // Auth state change listener will handle state updates
       return true; // Indicate sign-up API calls were successful
     } catch (err: any) {
-      console.error('Complete sign up error:', err);
+      // Only log unexpected errors in development
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Complete sign up error:', err);
+      }
       setError(err.message || 'Failed to sign up');
       setIsLoading(false); // Reset loading on error
       return false;

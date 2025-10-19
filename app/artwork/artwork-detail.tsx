@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { ArrowLeft, ShoppingCart, Star, Loader2 } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Star, Loader2, ExternalLink } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { formatPrice } from '@/lib/utils';
@@ -45,6 +45,7 @@ type Artwork = {
   user_id: string | null; // Match potential null from Supabase
   status: string;
   created_at: string | null; // Match potential null from Supabase
+  opensea_listing_url?: string | null;
   // Add potentially missing fields based on linter error
   updated_at?: string | null; 
   approved_at?: string | null;
@@ -53,9 +54,19 @@ type Artwork = {
   rejected_by?: string | null;
 };
 
+type ArtworkOwner = {
+  id: string;
+  email: string;
+  username: string | null;
+  name: string | null;
+  role: string;
+  wallet_address: string | null;
+};
+
 export function ArtworkDetail({ id }: { id: string }) {
   const router = useRouter();
   const [artwork, setArtwork] = useState<Artwork | null>(null);
+  const [owner, setOwner] = useState<ArtworkOwner | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [addingToCart, setAddingToCart] = useState(false);
@@ -87,6 +98,20 @@ export function ArtworkDetail({ id }: { id: string }) {
         }
 
         setArtwork(data as Artwork);
+        
+        // Fetch owner information if artwork has a user_id
+        if (data.user_id) {
+          const { data: ownerData, error: ownerError } = await supabaseClient
+            .from('users')
+            .select('id, email, username, name, role, wallet_address')
+            .eq('id', data.user_id)
+            .single();
+          
+          if (!ownerError && ownerData) {
+            setOwner(ownerData as ArtworkOwner);
+          }
+        }
+        
         setError(null); // Clear previous errors on success
       } catch (err) {
         console.error('Unexpected error fetching artwork:', err);
@@ -319,61 +344,117 @@ export function ArtworkDetail({ id }: { id: string }) {
             </p>
           </div>
           
-          <div className="flex items-center justify-between mb-8">
-            <span className="text-2xl font-bold">
-              {formatPrice(artwork.price)}
-            </span>
+          <div className="space-y-4 mb-8">
+            <div className="flex items-center justify-between">
+              <span className="text-2xl font-bold">
+                {formatPrice(artwork.price)}
+              </span>
+              
+              {!isOwner && user && artwork.status !== 'sold' && artwork.status !== 'draft' && (
+                <Button 
+                  onClick={handleAddToCart} 
+                  disabled={addingToCart || inCart}
+                  className={inCart ? 'bg-secondary hover:bg-secondary' : ''}
+                >
+                  {addingToCart ? (
+                    'Adding...'
+                  ) : inCart ? (
+                    'In Cart'
+                  ) : (
+                    <>
+                      <ShoppingCart className="mr-2 h-4 w-4" />
+                      Add to Cart
+                    </>
+                  )}
+                </Button>
+              )}
+              
+              {isOwner && isDraft && (
+                <Button
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                  onClick={handleMintNft}
+                  disabled={isMinting || !activeAccount}
+                >
+                  {isMinting ? (
+                     <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Minting...
+                    </>
+                  ) : (
+                    <>
+                      <Star className="mr-2 h-4 w-4" />
+                      Mint as NFT
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
             
-            {!isOwner && user && artwork.status !== 'sold' && artwork.status !== 'draft' && (
-              <Button 
-                onClick={handleAddToCart} 
-                disabled={addingToCart || inCart}
-                className={inCart ? 'bg-secondary hover:bg-secondary' : ''}
+            {artwork.opensea_listing_url && (
+              <a
+                href={artwork.opensea_listing_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
               >
-                {addingToCart ? (
-                  'Adding...'
-                ) : inCart ? (
-                  'In Cart'
-                ) : (
-                  <>
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                    Add to Cart
-                  </>
-                )}
-              </Button>
-            )}
-            
-            {isOwner && isDraft && (
-              <Button
-                className="bg-emerald-600 hover:bg-emerald-700"
-                onClick={handleMintNft}
-                disabled={isMinting || !activeAccount}
-              >
-                {isMinting ? (
-                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Minting...
-                  </>
-                ) : (
-                  <>
-                    <Star className="mr-2 h-4 w-4" />
-                    Mint as NFT
-                  </>
-                )}
-              </Button>
+                <ExternalLink className="h-4 w-4" />
+                View on OpenSea
+              </a>
             )}
           </div>
           
           <div className="border-t pt-6">
-            <h3 className="font-semibold mb-2">Details</h3>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-              <dt className="text-muted-foreground">Status</dt>
-              <dd className="font-medium capitalize">{artwork.status}</dd>
+            <h3 className="font-semibold mb-4">Details</h3>
+            <dl className="space-y-3 text-sm">
+              <div className="flex justify-between py-2 border-b border-muted">
+                <dt className="text-muted-foreground">Status</dt>
+                <dd className="font-medium capitalize">{artwork.status}</dd>
+              </div>
               
-              <dt className="text-muted-foreground">Listed on</dt>
-              <dd className="font-medium">
-                {new Date(artwork.created_at || '').toLocaleDateString()}
-              </dd>
+              <div className="flex justify-between py-2 border-b border-muted">
+                <dt className="text-muted-foreground">Listed on</dt>
+                <dd className="font-medium">
+                  {new Date(artwork.created_at || '').toLocaleDateString()}
+                </dd>
+              </div>
+              
+              {owner && (
+                <>
+                  <div className="flex justify-between py-2 border-b border-muted">
+                    <dt className="text-muted-foreground">Owner</dt>
+                    <dd className="font-medium">
+                      {owner.username || owner.name || owner.email.split('@')[0]}
+                    </dd>
+                  </div>
+                  
+                  <div className="flex justify-between py-2 border-b border-muted">
+                    <dt className="text-muted-foreground">Owner Email</dt>
+                    <dd className="font-medium text-xs">{owner.email}</dd>
+                  </div>
+                  
+                  <div className="flex justify-between py-2 border-b border-muted">
+                    <dt className="text-muted-foreground">Owner Role</dt>
+                    <dd className="font-medium capitalize">
+                      <span className={`px-2 py-1 rounded text-xs ${
+                        owner.role === 'admin' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+                        owner.role === 'seller' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                        'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                      }`}>
+                        {owner.role}
+                      </span>
+                    </dd>
+                  </div>
+                  
+                  {owner.wallet_address && (
+                    <div className="flex justify-between py-2 border-b border-muted">
+                      <dt className="text-muted-foreground">Owner Wallet</dt>
+                      <dd className="font-mono text-xs break-all">
+                        {owner.wallet_address.slice(0, 6)}...{owner.wallet_address.slice(-4)}
+                      </dd>
+                    </div>
+                  )}
+                </>
+              )}
             </dl>
           </div>
         </div>

@@ -26,7 +26,7 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirectTo = searchParams.get('redirectedFrom') || '/marketplace'
+  const redirectTo = searchParams.get('redirectedFrom') || '/gallery'
   const successMessage = searchParams.get('message')
   
   const {
@@ -49,19 +49,18 @@ export function LoginForm() {
       const success = await signIn(data)
       
       if (success) {
-        setTimeout(() => {
-          console.log('Login successful, redirecting to:', redirectTo)
-          router.push(redirectTo)
-        }, 500)
+        console.log('Login successful, redirecting to:', redirectTo)
+        // Use window.location.href for a full page reload to ensure proper redirect
+        window.location.href = redirectTo
       } else {
         throw new Error('Invalid email or password')
       }
     } catch (err: any) {
-      console.error('Login error:', err)
+      // Error is already handled by useAuth hook
       setError(err.message || 'Failed to sign in')
-    } finally {
       setIsLoading(false)
     }
+    // Don't set isLoading to false if login is successful - let the redirect happen
   }
   
   return (

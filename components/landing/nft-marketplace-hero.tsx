@@ -7,6 +7,7 @@ import Image from "next/image"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { useState, useEffect, useRef } from "react"
+import { useAuth } from "@/lib/hooks/use-auth"
 
 // NFT Card component with 3D parallax effect
 const NFTCard = ({ id, name, price, isAnimated = false }: { id: number; name: string; price: string; isAnimated?: boolean }) => {
@@ -280,6 +281,26 @@ function useScrollObserver() {
 
 export function NFTMarketplaceHero() {
   useScrollObserver();
+  const { user, isLoading, signOut } = useAuth();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOpen]);
   
   return (
     <div className="w-full bg-gray-950">
@@ -299,7 +320,7 @@ export function NFTMarketplaceHero() {
               <Link href="/gallery" className="text-gray-300 hover:text-white transition-colors">
                 Collections
               </Link>
-              <Link href="/gallery" className="text-gray-300 hover:text-white transition-colors">
+              <Link href="/artists" className="text-gray-300 hover:text-white transition-colors">
                 Artists
               </Link>
               <Link href="/gallery" className="text-gray-300 hover:text-white transition-colors">
@@ -307,16 +328,79 @@ export function NFTMarketplaceHero() {
               </Link>
             </nav>
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" className="text-gray-300 hover:text-white hover:bg-gray-800">
-                <Link href="/auth/login">Sign In</Link>
-              </Button>
-              <Button className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white border-0 relative overflow-hidden group">
-                <Link href="/account" className="flex items-center gap-2 relative z-10">
-                  <Wallet className="h-4 w-4" />
-                  Connect
-                </Link>
-                <div className="absolute inset-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl -z-10"></div>
-              </Button>
+              {!isLoading && (
+                <>
+                  {user ? (
+                    <div className="relative" ref={menuRef}>
+                      <button
+                        onClick={() => setIsMenuOpen(!isMenuOpen)}
+                        className="flex items-center space-x-2 rounded-full bg-gray-800 px-3 py-1.5 text-sm text-white hover:bg-gray-700"
+                      >
+                        <span className="text-xs text-gray-300">
+                          {user.email?.split('@')[0]}
+                        </span>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className={`h-4 w-4 transition-transform ${
+                            isMenuOpen ? 'rotate-180' : ''
+                          }`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+                      {isMenuOpen && (
+                        <div className="absolute right-0 mt-2 w-48 rounded-md bg-gray-800 py-1 shadow-lg ring-1 ring-black ring-opacity-5">
+                          <Link
+                            href="/profile"
+                            onClick={() => setIsMenuOpen(false)}
+                            className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+                          >
+                            Profile
+                          </Link>
+                          <Link
+                            href="/gallery"
+                            onClick={() => setIsMenuOpen(false)}
+                            className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+                          >
+                            Gallery
+                          </Link>
+                          <button
+                            onClick={async () => {
+                              setIsMenuOpen(false);
+                              await signOut();
+                              window.location.href = '/';
+                            }}
+                            className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white border-t border-gray-700"
+                          >
+                            Sign Out
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <Button variant="ghost" className="text-gray-300 hover:text-white hover:bg-gray-800">
+                        <Link href="/auth/login">Sign In</Link>
+                      </Button>
+                      <Button className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white border-0 relative overflow-hidden group">
+                        <Link href="/auth/signup" className="flex items-center gap-2 relative z-10">
+                          <Sparkles className="h-4 w-4" />
+                          Get Started
+                        </Link>
+                        <div className="absolute inset-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl -z-10"></div>
+                      </Button>
+                    </>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>

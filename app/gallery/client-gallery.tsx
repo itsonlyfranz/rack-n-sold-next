@@ -3,12 +3,18 @@
 import { useEffect, useState } from 'react';
 import { ArtworkCard } from '@/components/artwork/artwork-card';
 import { supabase } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/hooks/use-auth';
 import type { ArtworkWithUser } from '@/lib/types';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+type FilterTab = 'all' | 'my-artworks';
 
 export function ClientGallery() {
+  const { user } = useAuth();
   const [artworks, setArtworks] = useState<ArtworkWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<FilterTab>('all');
 
   useEffect(() => {
     async function fetchArtworks() {
@@ -17,11 +23,20 @@ export function ClientGallery() {
         
         console.log('Fetching artworks from client component...');
         
-        // This query runs with the user's authentication context
-        const { data, error } = await supabase
-          .from('artworks')
-          .select('*')
-          .order('created_at', { ascending: false });
+        // Fetch artworks based on login status
+        // Logged-in users (admin or regular): only see their own artworks (all statuses)
+        // Guests: only see minted/published artworks from everyone
+        let query = supabase.from('artworks').select('*');
+        
+        if (user) {
+          // Logged-in users only see their own artworks
+          query = query.eq('user_id', user.id);
+        } else {
+          // Guests only see minted/published artworks
+          query = query.in('status', ['minted', 'published']);
+        }
+        
+        const { data, error } = await query.order('created_at', { ascending: false });
           
         console.log('Client fetch result:', { 
           count: data?.length || 0, 
@@ -90,26 +105,41 @@ export function ClientGallery() {
     );
   }
   
-  if (artworks.length === 0) {
+  // Both admins and regular users only see their own artworks (no tabs)
+  // Only guests see all public artworks
+  const myArtworks = artworks.filter(artwork => artwork.user_id === user?.id);
+  
+  // Filter artworks - logged in users only see their own
+  const filteredArtworks = user ? myArtworks : artworks;
+
+  const renderArtworkGrid = (artworkList: ArtworkWithUser[]) => {
+    if (artworkList.length === 0) {
+      return (
+        <div className="text-center py-12">
+          <h2 className="text-xl font-semibold mb-2">No artworks found</h2>
+          <p className="text-muted-foreground">
+            {user
+              ? "You haven't uploaded any artworks yet. Visit the Artists page to upload your first artwork."
+              : "We are currently updating our gallery. Please check back later for new additions."}
+          </p>
+        </div>
+      );
+    }
+
     return (
-      <div className="text-center py-12">
-        <h2 className="text-xl font-semibold mb-2">No artworks found</h2>
-        <p className="text-muted-foreground">
-          We are currently updating our gallery. Please check back later for new additions.
-        </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {artworkList.map((artwork) => (
+          <ArtworkCard 
+            key={artwork.id} 
+            artwork={artwork}
+            showAuthor={true} 
+          />
+        ))}
       </div>
     );
-  }
-  
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {artworks.map((artwork) => (
-        <ArtworkCard 
-          key={artwork.id} 
-          artwork={artwork}
-          showAuthor={true} 
-        />
-      ))}
-    </div>
-  );
+  };
+
+  // Logged in users (both admin and regular) see only their own artworks without tabs
+  // Guests see all public artworks without tabs
+  return renderArtworkGrid(filteredArtworks);
 } 

@@ -33,8 +33,18 @@ export async function middleware(req: NextRequest) {
   // First try to get authenticated user (more secure)
   const { data: { user }, error: userError } = await supabase.auth.getUser()
   
-  // If there's a user error or no user, we don't have an authenticated user
-  const hasAuthenticatedUser = !userError && !!user
+  // Debug logging to understand auth issues
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Middleware Debug] Path:', req.nextUrl.pathname)
+    console.log('[Middleware Debug] Has user:', !!user)
+    console.log('[Middleware Debug] User ID:', user?.id || 'none')
+    console.log('[Middleware Debug] Auth error:', userError?.message || 'none')
+    console.log('[Middleware Debug] Cookies:', req.cookies.getAll().map(c => c.name))
+  }
+  
+  // We have an authenticated user if there's no error and we have a user object
+  // OR if the only error is "session missing" (which is expected) but we still have a user
+  const hasAuthenticatedUser = !!user
   
   // Only get session if we have an authenticated user (to minimize warnings)
   let session = null
@@ -43,13 +53,25 @@ export async function middleware(req: NextRequest) {
     session = sessionData.session
   }
 
+  // Get current URL path
+  const url = req.nextUrl.pathname
+
+  // Handle redirects BEFORE authentication checks
+  // Redirect /marketplace to /gallery
+  if (url === '/marketplace' || url.startsWith('/marketplace/')) {
+    return NextResponse.redirect(new URL('/gallery', req.url))
+  }
+
+  // Redirect /account to /profile (consolidated pages)
+  if (url === '/account') {
+    return NextResponse.redirect(new URL('/profile', req.url))
+  }
+
   // Define protected paths
   const adminPaths = ['/admin']
   // Combine buyer/seller paths as general authenticated paths
-  const authenticatedPaths = ['/seller', '/artwork/create', '/buyer', '/cart', '/account', '/profile']
-
-  // Get current URL path
-  const url = req.nextUrl.pathname
+  // Note: /profile removed - handles its own auth via useAuth hook
+  const authenticatedPaths = ['/seller', '/artwork/create', '/buyer', '/cart']
 
   // Check if path requires authentication
   const isAdminPath = adminPaths.some(path => url.startsWith(path))

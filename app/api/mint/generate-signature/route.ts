@@ -124,9 +124,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    if (artworkData.status !== 'draft') {
+    if (artworkData.status !== 'draft' && artworkData.status !== 'pending_mint') {
        console.warn(`API Route: Artwork ${artworkId} has status ${artworkData.status}, cannot mint.`);
-       return NextResponse.json({ error: `Artwork already minted or not in draft status (${artworkData.status})` }, { status: 400 });
+       return NextResponse.json({ error: `Artwork already minted or not in mintable status (${artworkData.status})` }, { status: 400 });
     }
     console.log("API Route: Artwork ownership and status verified.");
 

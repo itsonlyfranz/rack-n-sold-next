@@ -17,7 +17,7 @@ export default function LoginPage() {
   useEffect(() => {
     // Redirect if finished loading and user exists
     if (!isLoading && user) {
-      router.push('/marketplace')
+      router.push('/gallery')
     }
   }, [isLoading, user, router])
 
