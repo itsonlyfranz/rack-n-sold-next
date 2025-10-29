@@ -1,4 +1,7 @@
+"use cache";
+
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_cache } from 'next/cache';
 
 /**
  * API Route for fetching NFTs owned by a wallet address on Polygon using Alchemy
@@ -57,13 +60,25 @@ export async function GET(request: NextRequest) {
     // Complete URL
     alchemyUrl = `${alchemyUrl}?${params.toString()}`;
     
-    // Make request to Alchemy API
-    const response = await fetch(alchemyUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
+    // Cache the fetch with tags for better cache management
+    const fetchWithCache = unstable_cache(
+      async () => {
+        return await fetch(alchemyUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+        });
       },
-    });
+      [`alchemy-nfts-${owner}-${pageKey}-${pageSize}-${contractAddresses}`],
+      {
+        tags: ['alchemy', 'nfts', owner ? `wallet-${owner}` : 'all'],
+        revalidate: 1800 // Revalidate every 30 minutes
+      }
+    );
+    
+    // Make request to Alchemy API
+    const response = await fetchWithCache();
     
     // Handle failed requests
     if (!response.ok) {

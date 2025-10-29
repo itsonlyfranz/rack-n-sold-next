@@ -1,7 +1,10 @@
 /**
  * API route for fetching NFT collections from OpenSea
  */
+"use cache";
+
 import { NextResponse } from "next/server";
+import { unstable_cache } from "next/cache";
 
 export async function GET(req: Request) {
   try {

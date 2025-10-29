@@ -2,7 +2,10 @@
  * API route for fetching NFT assets from OpenSea on Polygon chain
  * Updated to use OpenSea's v2 API endpoints which replaced the deprecated assets endpoint
  */
+"use cache";
+
 import { NextResponse } from "next/server";
+import { unstable_cache } from "next/cache";
 
 export async function GET(req: Request) {
   try {
@@ -57,13 +60,25 @@ export async function GET(req: Request) {
     
     console.log("Fetching from OpenSea API:", apiUrl);
     
-    // Make the request to OpenSea API
-    const response = await fetch(apiUrl, {
-      headers: {
-        "X-API-KEY": apiKey,
-        "Accept": "application/json"
+    // Cache the fetch with tags for better cache management
+    const fetchWithCache = unstable_cache(
+      async () => {
+        return await fetch(apiUrl, {
+          headers: {
+            "X-API-KEY": apiKey,
+            "Accept": "application/json"
+          }
+        });
+      },
+      [`opensea-assets-${collection}-${owner}-${tokenId}-${limit}-${cursor}`],
+      {
+        tags: ['opensea', collection ? `collection-${collection}` : 'all', 'nfts'],
+        revalidate: 3600 // Revalidate every hour
       }
-    });
+    );
+    
+    // Make the request to OpenSea API
+    const response = await fetchWithCache();
     
     // Handle unsuccessful responses
     if (!response.ok) {

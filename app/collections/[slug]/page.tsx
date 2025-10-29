@@ -1,3 +1,5 @@
+"use cache";
+
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';

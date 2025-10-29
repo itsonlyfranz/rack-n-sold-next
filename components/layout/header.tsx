@@ -9,7 +9,7 @@ import { ConnectButton, useActiveAccount } from "thirdweb/react"
 import { thirdwebClient } from "@/lib/thirdweb-client";
 
 export function Header() {
-  const { user, signOut } = useAuth()
+  const { user, signOut, isLoading: authLoading } = useAuth()
   const activeAccount = useActiveAccount()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const { items } = useCartStore()
@@ -76,7 +76,7 @@ export function Header() {
               </Link>
             )}
             {/* Combined user account and wallet display */}
-            {user || activeAccount ? (
+            {!authLoading && (user || activeAccount) ? (
               <div className="flex items-center space-x-2 ml-2">
                 {/* Show ConnectButton when user is logged in but no wallet connected */}
                 {user && !activeAccount && (
@@ -146,13 +146,14 @@ export function Header() {
                     >
                       Profile
                     </Link>
-                    <Link
+                    {/* Temporarily hidden */}
+                    {/* <Link
                       href="/orders"
                       onClick={closeMenu}
                       className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
                     >
                       Orders
-                    </Link>
+                    </Link> */}
                     
                     {/* Wallet Management */}
                     {activeAccount && !user && (
@@ -183,7 +184,7 @@ export function Header() {
                 )}
                 </div>
               </div>
-            ) : (
+            ) : !authLoading ? (
               <div className="flex items-center space-x-2">
                 <ConnectButton 
                   client={thirdwebClient}
@@ -203,10 +204,14 @@ export function Header() {
                   Sign Up
                 </Link>
               </div>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <div className="h-9 w-24 animate-pulse rounded-md bg-gray-700"></div>
+              </div>
             )}
             
-            {/* Cart */}
-            <Link href="/cart" className="relative ml-2">
+            {/* Cart - Temporarily hidden */}
+            {/* <Link href="/cart" className="relative ml-2">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="h-6 w-6 text-gray-300 hover:text-white"
@@ -226,13 +231,13 @@ export function Header() {
                   {cartCount}
                 </span>
               )}
-            </Link>
+            </Link> */}
           </nav>
           
           {/* Mobile Navigation */}
           <div className="flex items-center md:hidden">
-            {/* Cart for mobile */}
-            <Link href="/cart" className="relative mr-4">
+            {/* Cart for mobile - Temporarily hidden */}
+            {/* <Link href="/cart" className="relative mr-4">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="h-6 w-6 text-gray-300"
@@ -252,7 +257,7 @@ export function Header() {
                   {cartCount}
                 </span>
               )}
-            </Link>
+            </Link> */}
             {/* Mobile menu button */}
             <button
               onClick={toggleMenu}
@@ -319,7 +324,7 @@ export function Header() {
                   connectButton={{ label: "Connect Wallet" }}
                 />
               </div>
-              {user ? (
+              {!authLoading && user ? (
                 <div className="border-t border-gray-700 pt-4 pb-3">
                   <div className="flex items-center px-5">
                     <div className="ml-3">
@@ -339,13 +344,14 @@ export function Header() {
                     >
                       Profile
                     </Link>
-                    <Link
+                    {/* Temporarily hidden */}
+                    {/* <Link
                       href="/orders"
                       onClick={closeMenu}
                       className="block rounded-md px-3 py-2 text-base text-gray-300 hover:bg-gray-800 hover:text-white"
                     >
                       Orders
-                    </Link>
+                    </Link> */}
                     <button
                       onClick={handleSignOut}
                       className="block w-full rounded-md px-3 py-2 text-left text-base text-gray-300 hover:bg-gray-800 hover:text-white"
@@ -354,7 +360,7 @@ export function Header() {
                     </button>
                   </div>
                 </div>
-              ) : (
+              ) : !authLoading ? (
                 <div className="border-t border-gray-700 pt-4 pb-3">
                   <div className="space-y-1 px-2">
                     <Link
@@ -371,6 +377,12 @@ export function Header() {
                     >
                       Sign Up
                     </Link>
+                  </div>
+                </div>
+              ) : (
+                <div className="border-t border-gray-700 pt-4 pb-3">
+                  <div className="space-y-1 px-2">
+                    <div className="h-10 w-full animate-pulse rounded-md bg-gray-700"></div>
                   </div>
                 </div>
               )}

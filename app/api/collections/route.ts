@@ -1,6 +1,7 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { revalidateTag } from 'next/cache';
 
 // Define typing for NFT collection data
 interface NFTCollection {
@@ -166,6 +167,9 @@ export async function GET(req: NextRequest) {
       console.error('Failed to update collection cache:', upsertError);
     }
     
+    // Revalidate cache for this collection to ensure fresh data on next read
+    await revalidateTag(`collection-${slug}`, 'high');
+    
     // Return the collection data
     return NextResponse.json({
       collection: {
@@ -266,6 +270,9 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+    
+    // Revalidate cache for this specific collection with high priority
+    await revalidateTag(`collection-${body.slug}`, 'high');
     
     return NextResponse.json({ success: true, collection: data });
   } catch (error) {

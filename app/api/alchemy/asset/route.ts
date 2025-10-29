@@ -1,4 +1,7 @@
+"use cache";
+
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_cache } from 'next/cache';
 
 /**
  * API Route for fetching a single NFT asset from Polygon using Alchemy
@@ -45,13 +48,25 @@ export async function GET(request: NextRequest) {
     // Documentation: https://docs.alchemy.com/reference/getnftmetadata
     const alchemyUrl = `${baseUrl}/${apiKey}/getNFTMetadata?contractAddress=${contract}&tokenId=${tokenId}&refreshCache=false`;
     
-    // Make request to Alchemy API
-    const response = await fetch(alchemyUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
+    // Cache the fetch with tags for better cache management
+    const fetchWithCache = unstable_cache(
+      async () => {
+        return await fetch(alchemyUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+        });
       },
-    });
+      [`alchemy-asset-${contract}-${tokenId}`],
+      {
+        tags: ['alchemy', 'asset', `contract-${contract}`, `token-${tokenId}`],
+        revalidate: 3600 // Revalidate every hour
+      }
+    );
+    
+    // Make request to Alchemy API
+    const response = await fetchWithCache();
     
     // Handle failed requests
     if (!response.ok) {
