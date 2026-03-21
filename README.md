@@ -1,90 +1,114 @@
 # Rack N Sold - NFT Marketplace
 
-A modern NFT marketplace built with Next.js, allowing users to browse, buy, and sell digital assets on the Polygon blockchain.
+A modern NFT marketplace built with Next.js, allowing users to browse, buy, and sell digital assets on the Polygon blockchain. Features dynamic pricing in PHP with live WETH conversion, NFT minting, and automated OpenSea listings.
 
 ## Features
 
-- Browse NFT collections from OpenSea on Polygon
-- Real-time updates with OpenSea Stream API for listings, sales, and transfers
-- Integrated Supabase for authentication and database
-- Connect MetaMask wallet for seamless blockchain interactions
-- Responsive design with Tailwind CSS
-- TypeScript for type safety
-- Server-side rendering for optimized performance
-- View your own OpenSea NFT collections
-- View NFTs owned by your wallet address on Polygon
+- **Browse NFT collections** from OpenSea on Polygon
+- **Real-time updates** with OpenSea Stream API for listings, sales, and transfers
+- **Integrated Supabase** for authentication and database
+- **MetaMask wallet integration** for seamless blockchain interactions
+- **Responsive design** with Tailwind CSS and dark mode support
+- **TypeScript** for type safety
+- **Server-side rendering** for optimized performance
+- **View your own OpenSea NFT collections** and wallet-owned NFTs
+- **Artist Portal** for uploading and minting NFTs
+- **Dynamic PHP Pricing** with live WETH conversion for artwork listings
+- **Automated OpenSea Listings** when sell requests are approved
+- **Admin Dashboard** for managing mint and sell requests
+- **User Profiles** with editable information and security features
 
 ## Prerequisites
 
-- Node.js 16.x or later
+- Node.js 18.x or later
 - npm or yarn
 - Supabase account for authentication and database
-- OpenSea API key for accessing the OpenSea API
-- An Alchemy API key for connecting to the Polygon blockchain
+- OpenSea API key for accessing the OpenSea API (v2)
+- Alchemy API key for connecting to the Polygon blockchain
+- MetaMask wallet for blockchain interactions
 
-## Getting Started
+## Environment Configuration
 
-First, install the dependencies:
+Create a `.env.local` file in the root directory. See below for required variables.
+
+### Core Environment Variables
 
 ```bash
-npm install
-# or
-yarn
-# or
-pnpm install
-```
-
-Then, set up your environment variables by creating a `.env.local` file in the root directory with the following variables:
-
-```
 # Supabase Configuration
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 # Storage Bucket Names
-NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET_ARTWORKS=artworks
-NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET_PROFILES=profiles
+NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET_ARTWORKS=artwork_images
+NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET_PROFILES=profile_images
 
 # Application Settings
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_APP_NAME=Rack N Sold
 
 # Authentication
 NEXT_PUBLIC_AUTH_REDIRECT_URL=http://localhost:3000/auth/callback
 
+# Blockchain Configuration
+NEXT_PUBLIC_POLYGON_RPC_URL=https://polygon-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_KEY
+POLYGON_RPC_URL=https://polygon-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_KEY
+NEXT_PUBLIC_POLYGON_CHAIN_ID=137
+NEXT_PUBLIC_NFT_CONTRACT_ADDRESS=your_nft_contract_address
+PRIVATE_KEY=your_admin_wallet_private_key
+
+# OpenSea Configuration
+OPENSEA_API_KEY=your_opensea_api_key
+NEXT_PUBLIC_OPENSEA_API_URL=https://api.opensea.io/api
+
 # Feature Flags
 NEXT_PUBLIC_FEATURE_SELLER_DASHBOARD=true
 NEXT_PUBLIC_FEATURE_ADMIN_DASHBOARD=true
-
-# OpenSea API Configuration
-OPENSEA_API_KEY=your_opensea_api_key
-
-# Polygon Network Configuration
-NEXT_PUBLIC_POLYGON_RPC_URL=https://polygon-mainnet.g.alchemy.com/v2/your_alchemy_api_key
-NEXT_PUBLIC_POLYGON_CHAIN_ID=137
 ```
 
-### Setting Up Supabase
+### NFT Minting Configuration
+
+For NFT minting functionality, you need:
+- **NFT Contract Address**: ERC-721 smart contract deployed on Polygon
+- **Admin Wallet Private Key**: Private key of the wallet that will mint NFTs
+- **Polygon RPC URLs**: Both public and private RPC endpoints for blockchain interactions
+
+### Dynamic Pricing (PHP to WETH)
+
+The application automatically fetches live PHP to WETH exchange rates from CoinGecko API. No additional configuration needed beyond what's listed above.
+
+## Getting Started
+
+### Installation
+
+```bash
+npm install
+# or
+yarn install
+# or
+pnpm install
+```
+
+### Setup Supabase
 
 1. Create a new Supabase project at [supabase.com](https://supabase.com)
-2. Copy your Supabase URL, anon key, and service role key to the `.env.local` file
-3. Run the setup script to initialize your Supabase project:
+2. Copy your Supabase URL, anon key, and service role key to `.env.local`
+3. Run migrations to set up database tables:
 
 ```bash
 npm run setup:supabase
-# or
-yarn setup:supabase
 ```
 
-This will:
-- Create the necessary storage buckets
-- Set up storage policies
-- Create database tables with appropriate security rules
+This creates:
+- User and profile tables
+- Artwork table for storing NFT metadata
+- Mint and sell request tracking tables
+- Storage policies and buckets
 
-For detailed manual setup instructions, see [SUPABASE_SETUP.md](./SUPABASE_SETUP.md).
+For detailed setup instructions, see [SUPABASE_SETUP.md](./SUPABASE_SETUP.md)
 
-### Running the Development Server
+### Run Development Server
 
 ```bash
 npm run dev
@@ -94,110 +118,109 @@ yarn dev
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to view the application.
 
-## Connecting Your OpenSea NFT Collection
+## Key Features & Usage
 
-To view your own OpenSea NFT collection in the app:
+### 1. Artist Portal & NFT Upload
 
-1. Make sure you have created an NFT collection on OpenSea's Polygon marketplace
-2. Navigate to "Marketplace" -> "My Collection" in the application
-3. Enter your collection slug (found in the URL of your OpenSea collection page)
-4. View your NFTs displayed in the application
+Sellers can upload artwork and list it for sale:
 
-The collection slug is the part of the URL after `https://opensea.io/collection/`. For example, if your collection URL is `https://opensea.io/collection/my-awesome-nfts`, your collection slug would be `my-awesome-nfts`.
+1. Register at [http://localhost:3000/auth/signup](http://localhost:3000/auth/signup) with "Seller" role
+2. Navigate to [http://localhost:3000/artists](http://localhost:3000/artists)
+3. Upload an image, add title, description, and **price in PHP**
+4. The app shows live WETH equivalent based on current exchange rate
+5. Click "Upload Artwork" to save
+6. Click "Mint as NFT" to mint the artwork as an NFT on Polygon
 
-## Viewing NFTs Owned by Your Wallet
+**Dynamic PHP Pricing:**
+- All prices are entered in **Philippine Peso (PHP)**
+- Live WETH equivalent is calculated using CoinGecko's exchange rate API
+- When the sell request is approved, PHP price is converted to WETH at current rate
+- Disclaimer displayed: "Crypto price is subject to change at the time of listing on OpenSea"
 
-To view NFTs owned by your Ethereum/Polygon wallet:
+### 2. NFT Minting & OpenSea Listing
 
-1. Navigate to "Marketplace" -> "My Wallet NFTs" in the application
-2. Connect your MetaMask wallet using the "Connect Wallet" button in the header
-3. Ensure your wallet is connected to the Polygon network (the app will prompt you to switch if needed)
-4. Your NFTs will automatically display once connected
-5. Alternatively, enter any wallet address manually to view NFTs owned by that address
-6. The app will display all NFTs owned by the specified wallet on the Polygon network
+**Mint Flow:**
+1. Upload artwork as a seller
+2. Click "Mint as NFT" button
+3. Admin reviews mint request in dashboard
+4. Admin approves → NFT is minted on Polygon, token ID is stored
 
-## Wallet Connection
+**Sell Flow:**
+1. After NFT is minted, sellers can create a "Sell Request"
+2. Admin reviews sell request in dashboard
+3. Admin approves → NFT is automatically listed on OpenSea with the converted WETH price
 
-The application provides seamless integration with MetaMask wallet:
+### 3. Admin Dashboard
 
-1. Click the "Connect Wallet" button in the application header
-2. Approve the connection request in your MetaMask extension
-3. If you're not on the Polygon network, you'll be prompted to switch
-4. Once connected, your wallet address will be displayed in the header
-5. You can disconnect at any time by clicking your wallet address and choosing "Disconnect"
+Admins access [http://localhost:3000/admin](http://localhost:3000/admin) to:
+- Review and approve mint requests
+- Review and approve sell requests
+- View transaction hashes and token IDs
+- Monitor OpenSea listing URLs
 
-For the best experience, ensure your MetaMask wallet is already set up with the Polygon network. If not, the app will help you add it automatically.
+### 4. Browse NFT Collections
 
-## Wallet Integration Features
+- Navigate to **Gallery** to browse all minted NFTs
+- View artist details, descriptions, and prices
+- Click on NFTs to see detailed information
+- View seller profiles and ratings
 
-### Wallet Profile
-The Wallet Profile page displays comprehensive information about your connected MetaMask wallet, including:
-- Wallet address and network details
-- Native token balance (MATIC on Polygon)
-- NFTs owned by your wallet on the Polygon network
-- Direct link to view your wallet on Polygonscan
+### 5. Marketplace & Wallet Integration
 
-To access your Wallet Profile:
-1. Connect your MetaMask wallet using the "Connect Wallet" button in the header
-2. Navigate to the "Wallet Profile" tab in the marketplace section
-3. View your wallet details, balance, and NFTs all in one place
+- **My Collection**: View your OpenSea NFT collection (enter collection slug)
+- **My Wallet NFTs**: View NFTs owned by your connected MetaMask wallet
+- **Wallet Profile**: View wallet balance, address, and transaction history
+- Auto-switch to Polygon network or manually connect wallet
 
-### My Wallet NFTs
-Browse all NFTs owned by your connected wallet address on the Polygon network:
-1. Connect your MetaMask wallet
-2. Navigate to the "My Wallet NFTs" tab in the marketplace
-3. View all your NFTs with their images and collection information
+### 6. User Profile Management
 
-You can also view NFTs for any wallet address by entering it manually on the My Wallet NFTs page.
+- Edit profile information (name, username, email, phone, address)
+- Upload and manage profile picture
+- Change password securely
+- View account details and join date
 
-## Structure
+## Exchange Rate & Pricing
 
-- `app/` - Next.js 13 app router
-- `components/` - React components
-- `lib/` - Utilities, hooks, and services
-- `public/` - Static assets
+The application uses **CoinGecko's free API** for real-time exchange rates:
 
-## License
+- **Endpoint**: `GET /api/exchange-rate`
+- **Returns**: PHP to WETH conversion rate
+- **Cache**: 60 seconds server-side to prevent rate limits
+- **Usage**: Automatic live preview in artwork upload form + conversion on OpenSea listing
 
-MIT
+No API key required for CoinGecko's free tier.
 
-## Acknowledgments
+## Architecture
 
-- [Next.js](https://nextjs.org/) - React framework
-- [Tailwind CSS](https://tailwindcss.com/) - CSS framework
-- [OpenSea API](https://docs.opensea.io/) - NFT marketplace API
-- [Supabase](https://supabase.com/) - Backend as a Service
-- [Polygon](https://polygon.technology/) - Blockchain for NFTs
+### Database Schema
 
-## Testing the Artists Upload Feature
+Key tables managed by Supabase:
+- **users** - User accounts, profiles, roles (seller, admin, buyer)
+- **artworks** - Artwork metadata, status (draft, minted, listed_for_sale), PHP price, token_id
+- **mint_requests** - Track NFT minting workflows, transaction hashes, token IDs
+- **sell_requests** - Track NFT listing workflows, OpenSea URLs, WETH prices
+- **profiles** - Extended user information
 
-1. Register for an account by visiting [http://localhost:3000/auth/signup](http://localhost:3000/auth/signup)
-   - Choose "Seller" as your role to enable artwork uploads
-   
-2. After registering, sign in with your new account
+### Smart Contracts
 
-3. Navigate to the Artists page at [http://localhost:3000/artists](http://localhost:3000/artists)
+- **ERC-721**: NFT contract on Polygon for minting digital assets
+- **WETH**: Payment token used for OpenSea listings on Polygon
 
-4. Upload an image, add a title, description, and price
+### API Routes
 
-5. Click "Upload Artwork" to save the artwork to Supabase
+- `GET /api/exchange-rate` - PHP to WETH conversion (CoinGecko)
+- `POST /api/mint/approve` - Approve and mint NFT
+- `POST /api/sell/approve` - Approve and list on OpenSea
+- `GET/POST /api/opensea/*` - OpenSea integration endpoints
 
-6. The "Mint as NFT" button is a placeholder for future functionality
+### Key Services
 
-## Technology Stack
-
-- **Framework**: Next.js 15
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Authentication**: Supabase Auth
-- **Database**: Supabase PostgreSQL
-- **Storage**: Supabase Storage
-- **Blockchain Integration**: ethers.js
-- **Form Handling**: react-hook-form with zod validation
-- **State Management**: Zustand
-- **Web3 Integration**: Metamask for wallet connection
+- **opensea-js**: OpenSea v2 API integration for automated listings
+- **ethers.js v6**: Blockchain interactions for minting and signing
+- **Supabase SDK**: Database and authentication
+- **CoinGecko API**: Real-time exchange rates
 
 ## Project Structure
 
@@ -205,6 +228,20 @@ MIT
 - `components/` - Reusable React components
 - `lib/` - Utility functions, hooks, and APIs
 - `public/` - Static assets
+
+## Technology Stack
+
+- **Framework**: Next.js 16.1 (Turbopack)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Authentication**: Supabase Auth
+- **Database**: Supabase PostgreSQL
+- **Storage**: Supabase Storage
+- **Blockchain Integration**: ethers.js v6, opensea-js
+- **Form Handling**: react-hook-form with zod validation
+- **State Management**: Zustand
+- **Web3 Integration**: MetaMask SDK, ethers.js
+- **Real-time Exchange Rates**: CoinGecko API
 
 ## License
 

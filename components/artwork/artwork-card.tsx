@@ -280,7 +280,7 @@ export function ArtworkCard({ artwork, showAuthor = true }: ArtworkCardProps) {
   // --- End Debug UI ---
   
   return (
-    <div className="card group relative overflow-hidden bg-gray-850 rounded-lg shadow-lg border border-gray-700/50 transition-all duration-300 hover:shadow-violet-500/10 hover:border-violet-500/30">
+    <div className="card group relative overflow-hidden bg-gray-850 rounded-lg shadow-lg border border-gray-700/50 transition-all duration-300 hover:shadow-emerald-500/10 hover:border-emerald-500/30">
       {/* --- Debug UI Display --- */}
       {/* <div className="absolute top-0 left-0 bg-black/70 text-white text-[10px] p-1 z-10 max-w-full overflow-hidden whitespace-nowrap">
         {debugInfo}
@@ -327,7 +327,7 @@ export function ArtworkCard({ artwork, showAuthor = true }: ArtworkCardProps) {
         
         {isListedOnOpenSea && !sold && (
           <div className="absolute top-2 right-2">
-            <span className="px-2 py-1 bg-blue-500 text-white text-xs font-medium rounded-md shadow flex items-center gap-1">
+            <span className="px-2 py-1 bg-emerald-500 text-white text-xs font-medium rounded-md shadow flex items-center gap-1">
               <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
               </svg>

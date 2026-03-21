@@ -84,8 +84,8 @@ export function EditArtworkForm({ id }: { id: string }) {
           return;
         }
         
-        // Check if the current user is the owner
-        if (user?.id !== data.user_id) {
+        // Check if the current user is the owner or an admin
+        if (user?.id !== data.user_id && user?.role !== 'admin') {
           setError('You do not have permission to edit this artwork.');
           return;
         }
@@ -274,10 +274,10 @@ export function EditArtworkForm({ id }: { id: string }) {
     : '/images/placeholder.svg';
   
   return (
-    <div className="container mx-auto px-4">
+    <div>
       <Button
         variant="ghost"
-        className="mb-6 pl-2"
+        className="mb-6 -ml-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
         onClick={handleGoBack}
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
@@ -289,22 +289,15 @@ export function EditArtworkForm({ id }: { id: string }) {
         {/* Left Column - Artwork Image Only */}
         <div className="lg:sticky lg:top-4 lg:self-start">
           {/* Artwork Image */}
-          <div className="relative w-full h-[450px] overflow-hidden rounded-lg border border-gray-700">
+          <div className="relative w-full h-[450px] overflow-hidden rounded-xl border-2 border-gray-200 dark:border-gray-700 shadow-2xl bg-white dark:bg-gray-800 group transition-all duration-300 hover:shadow-3xl">
             <Image
               src={imageSource}
               alt={artwork?.title || 'Artwork'}
               fill
               sizes="450px"
-              className="object-cover"
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
               priority
             />
-            {!isDraft && (
-              <div className="absolute top-4 right-4">
-                <Badge variant={isPendingMint ? 'secondary' : 'default'} className={isPendingMint ? 'bg-yellow-500' : 'bg-green-500'}>
-                  {artwork?.status}
-                </Badge>
-              </div>
-            )}
           </div>
         </div>
         
@@ -312,70 +305,94 @@ export function EditArtworkForm({ id }: { id: string }) {
         <div className="space-y-6">
           {/* NFT/Mint Status Card */}
           {!isDraft && (
-            <Card>
-          <CardHeader>
+            <Card className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-xl">
+          <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-3 text-xl">
                 {isPendingMint && (
                   <>
-                    <Clock className="h-5 w-5 text-yellow-500" />
-                    Mint Request Pending
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-yellow-500 to-orange-500">
+                      <Clock className="h-5 w-5 text-white" />
+                    </div>
+                    <span className="bg-gradient-to-r from-gray-900 to-gray-700 dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">
+                      Mint Request Pending
+                    </span>
                   </>
                 )}
-                {isMinted && (
+                {(isMinted || isListedForSale) && (
                   <>
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                    NFT Minted
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500">
+                      <CheckCircle className="h-5 w-5 text-white" />
+                    </div>
+                    <span className="bg-gradient-to-r from-gray-900 to-gray-700 dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">
+                      {isListedForSale ? 'Listed for Sale' : 'NFT Minted'}
+                    </span>
                   </>
                 )}
               </CardTitle>
-              <Badge variant={isPendingMint ? 'secondary' : 'default'} className={isPendingMint ? 'bg-yellow-500' : 'bg-green-500'}>
+              <Badge 
+                variant={isPendingMint ? 'secondary' : 'default'} 
+                className={`px-3 py-1 font-semibold shadow-md ${
+                  isPendingMint 
+                    ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white' 
+                    : isListedForSale
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white'
+                    : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
+                }`}
+              >
                 {artwork?.status}
               </Badge>
             </div>
-            <CardDescription>
+            <CardDescription className="text-base mt-2">
               {isPendingMint && 'Your mint request is pending admin approval.'}
-              {isMinted && 'This artwork has been successfully minted as an NFT.'}
+              {isMinted && !isListedForSale && 'This artwork has been successfully minted as an NFT.'}
+              {isListedForSale && 'This artwork is listed for sale on OpenSea.'}
             </CardDescription>
           </CardHeader>
           {mintRequest && (
             <CardContent>
-              <dl className="space-y-3 text-sm">
-                <div className="flex justify-between py-2 border-b border-muted">
-                  <dt className="text-muted-foreground">Request ID</dt>
-                  <dd className="font-mono text-xs">{mintRequest.id.slice(0, 8)}...</dd>
+              <dl className="space-y-4 text-sm">
+                <div className="flex justify-between items-center py-3 border-b-2 border-gray-200 dark:border-gray-700">
+                  <dt className="text-sm font-semibold text-gray-900 dark:text-gray-100">Request ID</dt>
+                  <dd className="font-mono text-xs bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded text-gray-700 dark:text-gray-300">
+                    {mintRequest.id.slice(0, 8)}...
+                  </dd>
                 </div>
                 
-                <div className="flex justify-between py-2 border-b border-muted">
-                  <dt className="text-muted-foreground">Requested On</dt>
-                  <dd>{new Date(mintRequest.requested_at).toLocaleString()}</dd>
+                <div className="flex justify-between items-center py-3 border-b-2 border-gray-200 dark:border-gray-700">
+                  <dt className="text-sm font-semibold text-gray-900 dark:text-gray-100">Requested On</dt>
+                  <dd className="text-gray-700 dark:text-gray-300 font-medium">
+                    {new Date(mintRequest.requested_at).toLocaleString()}
+                  </dd>
                 </div>
                 
                 {mintRequest.status === 'approved' && mintRequest.approved_at && (
                   <>
-                    <div className="flex justify-between py-2 border-b border-muted">
-                      <dt className="text-muted-foreground">Approved On</dt>
-                      <dd>{new Date(mintRequest.approved_at).toLocaleString()}</dd>
+                    <div className="flex justify-between items-center py-3 border-b-2 border-gray-200 dark:border-gray-700">
+                      <dt className="text-sm font-semibold text-gray-900 dark:text-gray-100">Approved On</dt>
+                      <dd className="text-gray-700 dark:text-gray-300 font-medium">
+                        {new Date(mintRequest.approved_at).toLocaleString()}
+                      </dd>
                     </div>
                     
                     {mintRequest.admin_wallet_address && (
-                      <div className="flex justify-between py-2 border-b border-muted">
-                        <dt className="text-muted-foreground">Minted To</dt>
-                        <dd className="font-mono text-xs">
+                      <div className="flex justify-between items-center py-3 border-b-2 border-gray-200 dark:border-gray-700">
+                        <dt className="text-sm font-semibold text-gray-900 dark:text-gray-100">Minted To</dt>
+                        <dd className="font-mono text-xs bg-emerald-50 dark:bg-emerald-950/30 px-2 py-1 rounded text-emerald-700 dark:text-emerald-300">
                           {mintRequest.admin_wallet_address.slice(0, 6)}...{mintRequest.admin_wallet_address.slice(-4)}
                         </dd>
                       </div>
                     )}
                     
                     {mintRequest.transaction_hash && (
-                      <div className="flex justify-between py-2 border-b border-muted">
-                        <dt className="text-muted-foreground">Transaction Hash</dt>
+                      <div className="flex justify-between items-center py-3 border-b-2 border-gray-200 dark:border-gray-700">
+                        <dt className="text-sm font-semibold text-gray-900 dark:text-gray-100">Transaction Hash</dt>
                         <dd className="font-mono text-xs">
                           <a
                             href={`https://polygonscan.com/tx/${mintRequest.transaction_hash}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-violet-400 hover:text-violet-300 underline"
+                            className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 underline font-medium transition-colors"
                           >
                             {mintRequest.transaction_hash.slice(0, 10)}...
                           </a>
@@ -387,15 +404,19 @@ export function EditArtworkForm({ id }: { id: string }) {
                 
                 {mintRequest.status === 'rejected' && mintRequest.rejected_at && (
                   <>
-                    <div className="flex justify-between py-2 border-b border-muted">
-                      <dt className="text-muted-foreground">Rejected On</dt>
-                      <dd>{new Date(mintRequest.rejected_at).toLocaleString()}</dd>
+                    <div className="flex justify-between items-center py-3 border-b-2 border-gray-200 dark:border-gray-700">
+                      <dt className="text-sm font-semibold text-gray-900 dark:text-gray-100">Rejected On</dt>
+                      <dd className="text-gray-700 dark:text-gray-300 font-medium">
+                        {new Date(mintRequest.rejected_at).toLocaleString()}
+                      </dd>
                     </div>
                     
                     {mintRequest.rejection_reason && (
-                      <div className="py-2">
-                        <dt className="text-muted-foreground mb-1">Rejection Reason</dt>
-                        <dd className="text-red-400">{mintRequest.rejection_reason}</dd>
+                      <div className="py-3">
+                        <dt className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">Rejection Reason</dt>
+                        <dd className="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800">
+                          {mintRequest.rejection_reason}
+                        </dd>
                       </div>
                     )}
                   </>
@@ -403,20 +424,20 @@ export function EditArtworkForm({ id }: { id: string }) {
               </dl>
               
               {isPendingMint && (
-                <Alert className="mt-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Editing Restricted</AlertTitle>
-                  <AlertDescription>
+                <Alert className="mt-6 bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 dark:border-yellow-400">
+                  <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+                  <AlertTitle className="text-yellow-800 dark:text-yellow-300 font-semibold">Editing Restricted</AlertTitle>
+                  <AlertDescription className="text-yellow-700 dark:text-yellow-400">
                     This artwork is pending mint approval. Major changes may require resubmission.
                   </AlertDescription>
                 </Alert>
               )}
               
               {isMinted && (
-                <Alert className="mt-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>NFT Minted</AlertTitle>
-                  <AlertDescription>
+                <Alert className="mt-6 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 dark:border-green-400">
+                  <AlertCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <AlertTitle className="text-green-800 dark:text-green-300 font-semibold">NFT Minted</AlertTitle>
+                  <AlertDescription className="text-green-700 dark:text-green-400">
                     This artwork has been minted as an NFT. Changes to title, description, or price will only update the marketplace listing, not the NFT metadata.
                   </AlertDescription>
                 </Alert>
@@ -431,84 +452,118 @@ export function EditArtworkForm({ id }: { id: string }) {
             <Button
               onClick={handleRequestSale}
               disabled={requestingSale}
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-pink-600 hover:from-emerald-700 hover:via-teal-700 hover:to-pink-700 text-white font-semibold py-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              {requestingSale ? 'Requesting...' : 'Request OpenSea Listing'}
+              {requestingSale ? (
+                <>
+                  <Clock className="mr-2 h-5 w-5 animate-spin" />
+                  Requesting...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="mr-2 h-5 w-5" />
+                  Request OpenSea Listing
+                </>
+              )}
             </Button>
           )}
           
           {/* Sell Request Status Card */}
           {sellRequest && (
-            <Card>
-              <CardHeader>
+            <Card className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-xl">
+              <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-3 text-xl">
                     {sellRequest.status === 'pending' && (
                       <>
-                        <Clock className="h-5 w-5 text-yellow-500" />
-                        Sale Request Pending
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-yellow-500 to-orange-500">
+                          <Clock className="h-5 w-5 text-white" />
+                        </div>
+                        <span className="bg-gradient-to-r from-gray-900 to-gray-700 dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">
+                          Sale Request Pending
+                        </span>
                       </>
                     )}
                     {sellRequest.status === 'approved' && (
                       <>
-                        <CheckCircle className="h-5 w-5 text-green-500" />
-                        Listed on OpenSea
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500">
+                          <CheckCircle className="h-5 w-5 text-white" />
+                        </div>
+                        <span className="bg-gradient-to-r from-gray-900 to-gray-700 dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">
+                          Listed on OpenSea
+                        </span>
                       </>
                     )}
                     {sellRequest.status === 'rejected' && (
                       <>
-                        <AlertCircle className="h-5 w-5 text-red-500" />
-                        Sale Request Rejected
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-red-500 to-pink-500">
+                          <AlertCircle className="h-5 w-5 text-white" />
+                        </div>
+                        <span className="bg-gradient-to-r from-gray-900 to-gray-700 dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">
+                          Sale Request Rejected
+                        </span>
                       </>
                     )}
                   </CardTitle>
-                  <Badge variant={
-                    sellRequest.status === 'pending' ? 'secondary' : 
-                    sellRequest.status === 'approved' ? 'default' : 
-                    'destructive'
-                  } className={
-                    sellRequest.status === 'pending' ? 'bg-yellow-500' : 
-                    sellRequest.status === 'approved' ? 'bg-green-500' : 
-                    'bg-red-500'
-                  }>
+                  <Badge 
+                    variant={
+                      sellRequest.status === 'pending' ? 'secondary' : 
+                      sellRequest.status === 'approved' ? 'default' : 
+                      'destructive'
+                    } 
+                    className={`px-3 py-1 font-semibold shadow-md ${
+                      sellRequest.status === 'pending' 
+                        ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white' 
+                        : sellRequest.status === 'approved'
+                        ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
+                        : 'bg-gradient-to-r from-red-500 to-pink-500 text-white'
+                    }`}
+                  >
                     {sellRequest.status}
                   </Badge>
                 </div>
-                <CardDescription>
+                <CardDescription className="text-base mt-2">
                   {sellRequest.status === 'pending' && 'Your sale request is pending admin review.'}
                   {sellRequest.status === 'approved' && 'This artwork is now listed on OpenSea!'}
                   {sellRequest.status === 'rejected' && 'Your sale request was rejected by an admin.'}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <dl className="space-y-3 text-sm">
-                  <div className="flex justify-between py-2 border-b border-muted">
-                    <dt className="text-muted-foreground">Request ID</dt>
-                    <dd className="font-mono text-xs">{sellRequest.id.slice(0, 8)}...</dd>
+                <dl className="space-y-4 text-sm">
+                  <div className="flex justify-between items-center py-3 border-b-2 border-gray-200 dark:border-gray-700">
+                    <dt className="text-sm font-semibold text-gray-900 dark:text-gray-100">Request ID</dt>
+                    <dd className="font-mono text-xs bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded text-gray-700 dark:text-gray-300">
+                      {sellRequest.id.slice(0, 8)}...
+                    </dd>
                   </div>
                   
-                  <div className="flex justify-between py-2 border-b border-muted">
-                    <dt className="text-muted-foreground">Requested On</dt>
-                    <dd>{new Date(sellRequest.requested_at).toLocaleString()}</dd>
+                  <div className="flex justify-between items-center py-3 border-b-2 border-gray-200 dark:border-gray-700">
+                    <dt className="text-sm font-semibold text-gray-900 dark:text-gray-100">Requested On</dt>
+                    <dd className="text-gray-700 dark:text-gray-300 font-medium">
+                      {new Date(sellRequest.requested_at).toLocaleString()}
+                    </dd>
                   </div>
                   
                   {sellRequest.status === 'approved' && sellRequest.approved_at && (
                     <>
-                      <div className="flex justify-between py-2 border-b border-muted">
-                        <dt className="text-muted-foreground">Approved On</dt>
-                        <dd>{new Date(sellRequest.approved_at).toLocaleString()}</dd>
+                      <div className="flex justify-between items-center py-3 border-b-2 border-gray-200 dark:border-gray-700">
+                        <dt className="text-sm font-semibold text-gray-900 dark:text-gray-100">Approved On</dt>
+                        <dd className="text-gray-700 dark:text-gray-300 font-medium">
+                          {new Date(sellRequest.approved_at).toLocaleString()}
+                        </dd>
                       </div>
                       
                       {sellRequest.opensea_listing_url && (
-                        <div className="py-2">
-                          <dt className="text-muted-foreground mb-2">OpenSea Listing</dt>
+                        <div className="py-3">
+                          <dt className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">OpenSea Listing</dt>
                           <dd>
                             <a
                               href={sellRequest.opensea_listing_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-400 hover:text-blue-300 underline break-all"
+                              className="inline-flex items-center gap-2 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 underline font-medium transition-colors bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/40 break-all"
                             >
+                              <CheckCircle className="h-4 w-4 flex-shrink-0" />
                               {sellRequest.opensea_listing_url}
                             </a>
                           </dd>
@@ -519,15 +574,19 @@ export function EditArtworkForm({ id }: { id: string }) {
                   
                   {sellRequest.status === 'rejected' && sellRequest.rejected_at && (
                     <>
-                      <div className="flex justify-between py-2 border-b border-muted">
-                        <dt className="text-muted-foreground">Rejected On</dt>
-                        <dd>{new Date(sellRequest.rejected_at).toLocaleString()}</dd>
+                      <div className="flex justify-between items-center py-3 border-b-2 border-gray-200 dark:border-gray-700">
+                        <dt className="text-sm font-semibold text-gray-900 dark:text-gray-100">Rejected On</dt>
+                        <dd className="text-gray-700 dark:text-gray-300 font-medium">
+                          {new Date(sellRequest.rejected_at).toLocaleString()}
+                        </dd>
                       </div>
                       
                       {sellRequest.rejection_reason && (
-                        <div className="py-2">
-                          <dt className="text-muted-foreground mb-1">Rejection Reason</dt>
-                          <dd className="text-red-400">{sellRequest.rejection_reason}</dd>
+                        <div className="py-3">
+                          <dt className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">Rejection Reason</dt>
+                          <dd className="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800">
+                            {sellRequest.rejection_reason}
+                          </dd>
                         </div>
                       )}
                     </>
@@ -538,88 +597,124 @@ export function EditArtworkForm({ id }: { id: string }) {
           )}
           
           {/* Separator between NFT status and form */}
-          {!isDraft && <Separator className="my-6" />}
+          {!isDraft && <Separator className="my-8 bg-gray-200 dark:bg-gray-700" />}
           
           {/* Edit Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
-          <div className="bg-destructive/15 text-destructive p-4 rounded-md">
-            {error}
-          </div>
-        )}
-        
-        <div className="space-y-2">
-          <label htmlFor="title" className="block text-sm font-medium">
-            Title
-          </label>
-          <Input
-            id="title"
-            name="title"
-            value={formData.title}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        
-        <div className="space-y-2">
-          <label htmlFor="artist" className="block text-sm font-medium">
-            Artist Name
-          </label>
-          <Input
-            id="artist"
-            name="artist"
-            value={formData.artist}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        
-        <div className="space-y-2">
-          <label htmlFor="price" className="block text-sm font-medium">
-            Price (USD)
-          </label>
-          <div className="relative">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
-              $
-            </span>
-            <Input
-              id="price"
-              name="price"
-              type="number"
-              step="0.01"
-              min="0.01"
-              value={formData.price}
-              onChange={handleChange}
-              className="pl-7"
-              required
-            />
-          </div>
-        </div>
-        
-        <div className="space-y-2">
-          <label htmlFor="description" className="block text-sm font-medium">
-            Description
-          </label>
-          <Textarea
-            id="description"
-            name="description"
-            rows={5}
-            value={formData.description}
-            onChange={handleChange}
-            placeholder="Describe your artwork..."
-          />
-        </div>
-        
-        <div className="pt-4">
-          <Button
-            type="submit"
-            disabled={saving}
-            className="w-full md:w-auto"
-          >
-            {saving ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </div>
-      </form>
+          <Card className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-xl">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500">
+                  <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </div>
+                <div>
+                  <CardTitle className="text-2xl mb-1">Edit Artwork Details</CardTitle>
+                  <CardDescription className="text-base">Update your artwork information.</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {error && (
+                  <div className="p-4 bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 dark:border-red-400 rounded-lg shadow-sm animate-in slide-in-from-top-2">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                      <span className="text-red-700 dark:text-red-300 font-medium">{error}</span>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="space-y-2">
+                  <label htmlFor="title" className="block text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    Title
+                    <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <Input
+                    id="title"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                    className="border-2 border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200 hover:border-gray-300 dark:hover:border-gray-600"
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label htmlFor="artist" className="block text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    Artist Name
+                    <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <Input
+                    id="artist"
+                    name="artist"
+                    value={formData.artist}
+                    onChange={handleChange}
+                    className="border-2 border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200 hover:border-gray-300 dark:hover:border-gray-600"
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label htmlFor="price" className="block text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    Price (USD)
+                    <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-500 dark:text-gray-400 text-lg font-medium">
+                      $
+                    </span>
+                    <Input
+                      id="price"
+                      name="price"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={formData.price}
+                      onChange={handleChange}
+                      className="pl-8 border-2 border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200 hover:border-gray-300 dark:hover:border-gray-600"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <label htmlFor="description" className="block text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    Description
+                  </label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    rows={5}
+                    value={formData.description}
+                    onChange={handleChange}
+                    placeholder="Describe your artwork..."
+                    className="border-2 border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200 hover:border-gray-300 dark:hover:border-gray-600 resize-y"
+                  />
+                </div>
+                
+                <div className="pt-4">
+                  <Button
+                    type="submit"
+                    disabled={saving}
+                    className="w-full md:w-auto bg-gradient-to-r from-emerald-600 via-teal-600 to-pink-600 hover:from-emerald-700 hover:via-teal-700 hover:to-pink-700 text-white font-semibold py-6 px-8 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  >
+                    {saving ? (
+                      <>
+                        <Clock className="mr-2 h-5 w-5 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="mr-2 h-5 w-5" />
+                        Save Changes
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

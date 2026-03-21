@@ -189,7 +189,7 @@ export default function NftDetailClient({ contractAddress, tokenId }: NftDetailC
               href={openSeaUrl} // Use the logged URL
               target="_blank" 
               rel="noopener noreferrer"
-              className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+              className="inline-block bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded"
             >
                 View on OpenSea
             </a>

@@ -45,6 +45,20 @@ export async function POST(request: NextRequest) {
     const userId = user.id;
     console.log('[Sell Request API] User authenticated:', userId);
 
+    // Fetch user role to check if admin
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !userData) {
+      console.error('[Sell Request API] Error fetching user:', userError);
+      return NextResponse.json({ error: 'Failed to verify user' }, { status: 500 });
+    }
+
+    const isAdmin = userData.role === 'admin';
+
     // Fetch artwork to verify ownership and status
     const { data: artwork, error: artworkError } = await supabase
       .from('artworks')
@@ -57,8 +71,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Artwork not found' }, { status: 404 });
     }
 
-    // Check if user owns the artwork
-    if (artwork.user_id !== userId) {
+    // Check if user owns the artwork (admins can bypass this check)
+    if (!isAdmin && artwork.user_id !== userId) {
       console.error('[Sell Request API] User does not own this artwork');
       return NextResponse.json({ error: 'You do not own this artwork' }, { status: 403 });
     }

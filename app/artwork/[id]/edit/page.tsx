@@ -31,9 +31,15 @@ export default async function EditArtworkPage(props: EditArtworkPageProps) {
   
   return (
     <MainLayout>
-      <div className="container mx-auto py-8">
-        <h1 className="text-3xl font-bold mb-8">Edit Artwork</h1>
-        <EditArtworkForm id={id} />
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30 dark:from-gray-900 dark:via-gray-900 dark:to-emerald-950/20">
+        <div className="container mx-auto px-4 py-8 relative max-w-6xl">
+          <div className="mb-8">
+            <h1 className="text-4xl md:text-5xl font-bold mb-3 bg-gradient-to-r from-emerald-600 via-teal-600 to-pink-600 bg-clip-text text-transparent">
+              Edit Artwork
+            </h1>
+          </div>
+          <EditArtworkForm id={id} />
+        </div>
       </div>
     </MainLayout>
   );

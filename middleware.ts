@@ -31,7 +31,27 @@ export async function middleware(req: NextRequest) {
   )
 
   // First try to get authenticated user (more secure)
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  let user: any = null
+  let userError: any = null
+  
+  try {
+    const result = await supabase.auth.getUser()
+    user = result.data.user
+    userError = result.error
+  } catch (err: any) {
+    // Handle JSON parsing errors from corrupted cookies
+    if (err?.message?.includes('JSON') || err?.message?.includes('Unexpected token')) {
+      console.warn('[Middleware] Corrupted auth cookie detected, clearing cookies')
+      // Clear corrupted auth cookies
+      const authCookieNames = ['sb-ukamngdajouofvynqjcn-auth-token', 'sb-auth-token']
+      authCookieNames.forEach(name => {
+        res.cookies.delete(name)
+      })
+      userError = { message: 'Corrupted session cookie cleared' }
+    } else {
+      userError = err
+    }
+  }
   
   // Debug logging to understand auth issues
   if (process.env.NODE_ENV === 'development') {
@@ -85,7 +105,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // If user is authenticated, check for admin path access
-  if (hasAuthenticatedUser && isAdminPath) {
+  if (hasAuthenticatedUser && isAdminPath && user) {
     // Fetch user role from DB
     const { data: userData } = await supabase
       .from('users')

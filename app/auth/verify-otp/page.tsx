@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase/client'
 
-export default function VerifyOtpPage() {
+function VerifyOtpForm() {
   const router = useRouter()
   const params = useSearchParams()
   const emailParam = params.get('email') || ''
@@ -30,15 +30,13 @@ export default function VerifyOtpPage() {
     setError(null)
 
     try {
-      // 1) Verify the OTP (EMAIL OTP) to sign in the user temporarily
-      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+      const { error: verifyError } = await supabase.auth.verifyOtp({
         email,
         token,
-        type: 'email', // email OTP
+        type: 'email',
       })
       if (verifyError) throw verifyError
 
-      // 2) Now update the password
       const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword,
       })
@@ -76,7 +74,7 @@ export default function VerifyOtpPage() {
           <Input id="password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} minLength={6} required />
         </div>
 
-        <Button type="submit" disabled={isLoading} className="w-full bg-blue-600 hover:bg-blue-700">
+        <Button type="submit" disabled={isLoading} className="w-full bg-emerald-600 hover:bg-emerald-700">
           {isLoading ? 'Updating…' : 'Verify & Update Password'}
         </Button>
       </form>
@@ -84,4 +82,10 @@ export default function VerifyOtpPage() {
   )
 }
 
-
+export default function VerifyOtpPage() {
+  return (
+    <Suspense fallback={<div className="w-full max-w-md mx-auto p-6 bg-gray-800 rounded-lg shadow-md animate-pulse h-64" />}>
+      <VerifyOtpForm />
+    </Suspense>
+  )
+}

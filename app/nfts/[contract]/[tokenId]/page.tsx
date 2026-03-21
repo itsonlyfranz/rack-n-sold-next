@@ -20,7 +20,7 @@ const Alert = ({
   className?: string 
 }) => {
   const variantClasses = {
-    default: 'bg-blue-50 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400',
+    default: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400',
     destructive: 'bg-red-50 text-red-800 dark:bg-red-900/20 dark:text-red-400',
     warning: 'bg-yellow-50 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
   };
@@ -266,7 +266,7 @@ export default function NFTDetailPage() {
           {nft.collection && (
             <Link 
               href={`/collections/${nft.collection.slug}`}
-              className="text-blue-600 dark:text-blue-400 hover:underline mb-4 inline-block"
+              className="text-emerald-600 dark:text-emerald-400 hover:underline mb-4 inline-block"
             >
               {nft.collection.name || 'Unknown Collection'}
             </Link>

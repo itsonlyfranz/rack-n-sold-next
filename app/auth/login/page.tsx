@@ -5,7 +5,6 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { LoginForm } from '@/components/auth/login-form'
 import { MainLayout } from '@/components/layout/main-layout'
-import { WalletAuthSection } from '@/components/auth/wallet-auth-section'
 import { useAuth } from '@/lib/hooks/use-auth'
 
 export default function LoginPage() {
@@ -40,7 +39,7 @@ export default function LoginPage() {
         <div className="container mx-auto py-12">
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
               <p className="text-gray-400">Loading...</p>
             </div>
           </div>
@@ -84,15 +83,11 @@ export default function LoginPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div>
+        <div className="flex justify-center">
+          <div className="w-full max-w-md">
             <h2 className="text-xl font-semibold mb-4 text-center">Login with Email</h2>
             {/* Make sure the LoginForm is always rendered */}
             <LoginForm />
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold mb-4 text-center">Login with Wallet</h2>
-            <WalletAuthSection />
           </div>
         </div>
       </div>

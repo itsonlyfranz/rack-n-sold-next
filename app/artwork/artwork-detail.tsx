@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { ArrowLeft, ShoppingCart, Star, Loader2, ExternalLink } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -10,29 +11,23 @@ import { useCartStore } from '@/lib/store/cart';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { toast } from 'react-hot-toast';
 
-// --- Thirdweb Imports ---
-import {
-  createThirdwebClient,
-  getContract,
-  defineChain // Or import specific chain like 'polygon'
-} from "thirdweb";
-import { polygon } from "thirdweb/chains"; // Import specific chain if needed
-import { useActiveAccount } from "thirdweb/react"; // Hook to get connected account
-import { mintWithSignature } from "thirdweb/extensions/erc721";
-import { sendAndConfirmTransaction } from "thirdweb";
-
 // --- Constants ---
 const NFT_CONTRACT_ADDRESS = "0x67a422A7E41337E346038e8c4a9013215D786105";
 const NEXT_PUBLIC_THIRDWEB_CLIENT_ID = process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID;
 
-if (!NEXT_PUBLIC_THIRDWEB_CLIENT_ID) {
-  console.error("Missing NEXT_PUBLIC_THIRDWEB_CLIENT_ID env variable");
-  // Handle the error appropriately, maybe show a message to the user
-}
-
-const thirdwebClient = NEXT_PUBLIC_THIRDWEB_CLIENT_ID ? createThirdwebClient({
-  clientId: NEXT_PUBLIC_THIRDWEB_CLIENT_ID,
-}) : null;
+// Lazy load the mint button component to avoid loading thirdweb until needed
+const MintButton = dynamic(
+  () => import('./mint-button').then(mod => ({ default: mod.MintButton })),
+  { 
+    ssr: false,
+    loading: () => (
+      <Button disabled className="bg-emerald-600 hover:bg-emerald-700">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        Loading...
+      </Button>
+    )
+  }
+);
 
 // --- Artwork Type ---
 type Artwork = {
@@ -63,19 +58,29 @@ type ArtworkOwner = {
   wallet_address: string | null;
 };
 
+type SellRequest = {
+  id: string;
+  status: string;
+  requested_at: string;
+  approved_at: string | null;
+  approved_by: string | null;
+  opensea_listing_url: string | null;
+  rejected_at: string | null;
+  rejection_reason: string | null;
+};
+
 export function ArtworkDetail({ id }: { id: string }) {
   const router = useRouter();
   const [artwork, setArtwork] = useState<Artwork | null>(null);
   const [owner, setOwner] = useState<ArtworkOwner | null>(null);
+  const [sellRequest, setSellRequest] = useState<SellRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [addingToCart, setAddingToCart] = useState(false);
-  const [isMinting, setIsMinting] = useState(false); // <-- Add minting state
+  const [requestingSale, setRequestingSale] = useState(false);
+  const [mintSuccess, setMintSuccess] = useState(false);
   const { user } = useAuth();
   const { addItem, isInCart } = useCartStore();
-
-  // --- Thirdweb Hooks ---
-  const activeAccount = useActiveAccount(); // Get the connected wallet account
 
   useEffect(() => {
     async function fetchArtwork() {
@@ -109,6 +114,22 @@ export function ArtworkDetail({ id }: { id: string }) {
           
           if (!ownerError && ownerData) {
             setOwner(ownerData as ArtworkOwner);
+          }
+        }
+        
+        // If artwork is minted or listed_for_sale, fetch sell request details
+        if (data.status === 'minted' || data.status === 'listed_for_sale') {
+          const { data: sellData, error: sellError } = await supabaseClient
+            .from('sell_requests')
+            .select('*')
+            .eq('artwork_id', id)
+            .order('requested_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          // Only set sell request if we found one (no error or error is just "no rows")
+          if (sellData && (!sellError || sellError.code === 'PGRST116')) {
+            setSellRequest(sellData as SellRequest);
           }
         }
         
@@ -150,100 +171,46 @@ export function ArtworkDetail({ id }: { id: string }) {
     }
   };
 
-  // --- Minting Function ---
-  const handleMintNft = async () => {
-    if (!activeAccount || !artwork || !user || !thirdwebClient) {
-      toast.error("Cannot mint: Missing connection, artwork details, or client setup.");
-      console.error("Mint pre-check failed:", { activeAccount, artwork, user, thirdwebClient });
-      return;
-    }
-     // Ensure the connected wallet is the owner
-    if (activeAccount.address !== user.wallet_address) {
-        toast.error("Connected wallet does not match the artwork owner's wallet.");
-        console.error("Mint auth failed: Connected wallet", activeAccount.address, "does not match owner wallet stored in user profile");
-        // Note: We might need to fetch user.wallet_address if not readily available in useAuth()
-        return;
-    }
-
-
-    setIsMinting(true);
-    toast.loading("Preparing to mint..."); // Show loading toast
-
-    try {
-      // 1. Call backend to get signature
-      console.log("Calling backend for signature...");
-      const signatureResponse = await fetch('/api/mint/generate-signature', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          artworkId: artwork.id,
-          title: artwork.title,
-          description: artwork.description,
-          imageUrl: artwork.image_url,
-          artistAddress: activeAccount.address, // Mint NFT to the connected account's address
-          price: artwork.price, // Include price if needed by your contract/metadata
-        }),
-      });
-
-      if (!signatureResponse.ok) {
-        const errorData = await signatureResponse.json();
-        console.error("Backend signature error:", errorData);
-        throw new Error(errorData.error || 'Failed to get minting signature from server.');
-      }
-
-      const signedData = await signatureResponse.json();
-      console.log("Received signed data:", signedData);
-      toast.dismiss(); // Dismiss loading toast
-      toast.success("Signature received! Please approve in your wallet.");
-
-      // 2. Prepare and send frontend transaction using the signature
-      const contract = getContract({
-        client: thirdwebClient,
-        chain: polygon, // Use the specific chain
-        address: NFT_CONTRACT_ADDRESS,
-      });
-
-      console.log("Preparing mint transaction...");
-      const transaction = mintWithSignature({
-        contract: contract,
-        payload: signedData.payload,
-        signature: signedData.signature,
-      });
-
-      console.log("Sending transaction to wallet for approval...");
-      // This line triggers the MetaMask popup
-      const receipt = await sendAndConfirmTransaction({
-          transaction,
-          account: activeAccount
-      });
-
-      console.log("Mint transaction successful:", receipt);
-      toast.success("NFT minted successfully!");
-
-      // TODO: Optionally update artwork status in Supabase here or via webhook
-      // For now, maybe just disable the button or refetch?
-      // Refetching might be simplest for now:
-       // await fetchArtwork(); // Re-fetch to update status display
-
-       // Or simply update local state if refetch is too slow/complex now
-       setArtwork(prev => prev ? { ...prev, status: 'minted' } : null);
-
-
-    } catch (err: any) {
-      console.error("Minting process failed:", err);
-      toast.dismiss(); // Dismiss loading toast if any
-      toast.error(`Minting failed: ${err.message || 'Unknown error'}`);
-    } finally {
-      setIsMinting(false);
-    }
-  };
 
 
   const inCart = artwork ? isInCart(artwork.id) : false;
   // Ensure artwork is loaded before checking ownership/status
   const isOwner = user?.id === artwork?.user_id;
+  const isAdmin = user?.role === 'admin';
   const isDraft = artwork?.status === 'draft';
-  const isMinted = artwork?.status === 'minted'; // Add check for minted status
+  const isMinted = artwork?.status === 'minted';
+  
+  const handleRequestSale = async () => {
+    if (!artwork || !user) return;
+    
+    try {
+      setRequestingSale(true);
+      setError(null);
+      
+      const response = await fetch('/api/sell/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ artworkId: artwork.id }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to request sale');
+      }
+      
+      toast.success(data.message || 'Sell request submitted successfully!');
+      
+      // Refresh the page to show the updated sell request status
+      window.location.reload();
+    } catch (err: any) {
+      console.error('Error requesting sale:', err);
+      toast.error(err.message || 'Failed to request sale. Please try again.');
+      setError(err.message || 'Failed to request sale. Please try again.');
+    } finally {
+      setRequestingSale(false);
+    }
+  };
 
 
   // --- Loading State ---
@@ -369,33 +336,76 @@ export function ArtworkDetail({ id }: { id: string }) {
                 </Button>
               )}
               
-              {isOwner && isDraft && (
-                <Button
-                  className="bg-emerald-600 hover:bg-emerald-700"
-                  onClick={handleMintNft}
-                  disabled={isMinting || !activeAccount}
-                >
-                  {isMinting ? (
-                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Minting...
-                    </>
-                  ) : (
-                    <>
-                      <Star className="mr-2 h-4 w-4" />
-                      Mint as NFT
-                    </>
-                  )}
-                </Button>
+              {isOwner && isDraft && !mintSuccess && (
+                <MintButton
+                  artwork={artwork}
+                  user={user}
+                  onMintSuccess={() => {
+                    setMintSuccess(true);
+                    setArtwork(prev => prev ? { ...prev, status: 'minted' } : null);
+                  }}
+                />
               )}
             </div>
+            
+            {/* Request OpenSea Listing Button - Show for owners or admins on minted artworks */}
+            {(isOwner || isAdmin) && isMinted && !sellRequest && (
+              <Button
+                onClick={handleRequestSale}
+                disabled={requestingSale}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 mb-4"
+              >
+                {requestingSale ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Requesting...
+                  </>
+                ) : (
+                  <>
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Request OpenSea Listing
+                  </>
+                )}
+              </Button>
+            )}
+            
+            {/* Sell Request Status Display */}
+            {sellRequest && (
+              <div className="mb-4 p-4 bg-muted/40 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold">Sale Request Status</span>
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                    sellRequest.status === 'pending' ? 'bg-yellow-500 text-yellow-900' :
+                    sellRequest.status === 'approved' ? 'bg-green-500 text-green-900' :
+                    'bg-red-500 text-red-900'
+                  }`}>
+                    {sellRequest.status}
+                  </span>
+                </div>
+                {sellRequest.status === 'pending' && (
+                  <p className="text-sm text-muted-foreground">
+                    Your sale request is pending admin review.
+                  </p>
+                )}
+                {sellRequest.status === 'approved' && sellRequest.opensea_listing_url && (
+                  <a
+                    href={sellRequest.opensea_listing_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-emerald-600 hover:underline"
+                  >
+                    View on OpenSea →
+                  </a>
+                )}
+              </div>
+            )}
             
             {artwork.opensea_listing_url && (
               <a
                 href={artwork.opensea_listing_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+                className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors"
               >
                 <ExternalLink className="h-4 w-4" />
                 View on OpenSea
@@ -436,8 +446,8 @@ export function ArtworkDetail({ id }: { id: string }) {
                     <dt className="text-muted-foreground">Owner Role</dt>
                     <dd className="font-medium capitalize">
                       <span className={`px-2 py-1 rounded text-xs ${
-                        owner.role === 'admin' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
-                        owner.role === 'seller' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                        owner.role === 'admin' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' :
+                        owner.role === 'seller' ? 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200' :
                         'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
                       }`}>
                         {owner.role}

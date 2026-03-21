@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import type { User, AuthFormData, SignUpFormData } from '@/lib/types'
 import { useRouter } from 'next/navigation'
@@ -11,9 +11,13 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  const currentUserIdRef = useRef<string | null>(null)
 
   // Function to fetch the full user profile from the DB or create it if missing
   const fetchProfile = useCallback(async (authenticatedAuthUser: AuthUser) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-auth.ts:18',message:'fetchProfile ENTRY',data:{userId:authenticatedAuthUser.id,userEmail:authenticatedAuthUser.email},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     try {
       // Try fetching the profile from the database
       const { data: profileData, error: profileDbError } = await supabase
@@ -23,6 +27,9 @@ export function useAuth() {
         .single<User>()
 
       if (profileData) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-auth.ts:26',message:'fetchProfile SUCCESS - profile found',data:{userId:profileData.id,role:profileData.role},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         setUser(profileData); // Profile found, update state
         return; // Exit early
       }
@@ -86,12 +93,60 @@ export function useAuth() {
             setUser(createdUser); // Set the newly created user profile
           }
         } else {
-          // Other database error fetching profile
-          console.error('Error fetching user profile:', profileDbError);
-          setUser(null); // Unable to fetch or create profile
+          // Other database error fetching profile - log with more details
+          const errorDetails = {
+            code: profileDbError.code,
+            message: profileDbError.message,
+            details: profileDbError.details,
+            hint: profileDbError.hint,
+            error: profileDbError,
+          };
+          console.error('Error fetching user profile:', errorDetails);
+          
+          // If error is empty or unclear, fallback to auth data instead of setting user to null
+          const fallbackUser: User = {
+            id: authenticatedAuthUser.id,
+            email: authenticatedAuthUser.email || '',
+            name: null,
+            username: authenticatedAuthUser.user_metadata?.username || authenticatedAuthUser.email?.split('@')[0] || null,
+            phone: null,
+            address: null,
+            profile_picture: null,
+            status: 'active',
+            role: (authenticatedAuthUser.user_metadata?.role as User['role']) || 'buyer',
+            created_at: authenticatedAuthUser.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            wallet_address: null,
+            wallet_connected_at: null,
+            wallet_chain_id: null,
+          };
+          setUser(fallbackUser); // Use fallback instead of null to prevent auth issues
         }
+      } else if (!profileData) {
+        // No error but also no data - this shouldn't happen, but handle it gracefully
+        console.warn('No profile data and no error returned. Creating fallback user profile.');
+        const fallbackUser: User = {
+          id: authenticatedAuthUser.id,
+          email: authenticatedAuthUser.email || '',
+          name: null,
+          username: authenticatedAuthUser.user_metadata?.username || authenticatedAuthUser.email?.split('@')[0] || null,
+          phone: null,
+          address: null,
+          profile_picture: null,
+          status: 'active',
+          role: (authenticatedAuthUser.user_metadata?.role as User['role']) || 'buyer',
+          created_at: authenticatedAuthUser.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          wallet_address: null,
+          wallet_connected_at: null,
+          wallet_chain_id: null,
+        };
+        setUser(fallbackUser);
       }
     } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-auth.ts:140',message:'fetchProfile ERROR',data:{error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       console.error('Unexpected error in profile fetch process:', error);
       // Fallback to auth data in case of unexpected errors
       const fallbackUser: User = {
@@ -114,80 +169,218 @@ export function useAuth() {
     }
   }, []);
 
-  // Initial check on mount - directly using getSession
+  // Initial check on mount - restore session if valid, clear if corrupted
   useEffect(() => {
     let isMounted = true;
+    let hasRun = false;
     const checkUser = async () => {
+      if (hasRun) return; // Prevent duplicate runs in StrictMode
+      hasRun = true;
       setIsLoading(true);
       setError(null);
       try {
-        // Use getUser instead of getSession for better security
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        // First try getSession for better cookie compatibility
+        let session = null;
+        let sessionError = null;
+        
+        try {
+          const result = await supabase.auth.getSession();
+          session = result.data.session;
+          sessionError = result.error;
+        } catch (err: any) {
+          // Handle JSON parsing errors from corrupted cookies
+          if (err?.message?.includes('JSON') || err?.message?.includes('Unexpected token')) {
+            console.warn('[useAuth] Corrupted auth cookie detected, clearing cookies');
+            try {
+              await supabase.auth.signOut({ scope: 'local' });
+            } catch (clearErr) {
+              // Ignore errors when clearing
+            }
+            sessionError = { message: 'Corrupted session cookie cleared' };
+          } else {
+            sessionError = err;
+          }
+        }
+        
         if (!isMounted) return;
 
-        if (userError) {
-          throw userError;
+        if (sessionError && !sessionError.message?.includes('Corrupted')) {
+          console.error('[useAuth] Session error:', sessionError);
+          // Fallback to getUser only if it's not a corrupted cookie
+          try {
+            const { data: { user }, error: userError } = await supabase.auth.getUser();
+            if (userError && !userError.message?.includes('session_missing')) {
+              // Check for corrupted cookie in getUser too
+              if (userError.message?.includes('JSON') || userError.message?.includes('Unexpected token')) {
+                console.warn('[useAuth] Corrupted cookie in getUser, clearing session');
+                await supabase.auth.signOut({ scope: 'local' });
+                setUser(null);
+                currentUserIdRef.current = null;
+                return;
+              }
+              throw userError;
+            }
+            if (user) {
+              await fetchProfile(user);
+              currentUserIdRef.current = user.id;
+            } else {
+              setUser(null);
+              currentUserIdRef.current = null;
+            }
+          } catch (getUserErr: any) {
+            // Handle JSON errors in getUser too
+            if (getUserErr?.message?.includes('JSON') || getUserErr?.message?.includes('Unexpected token')) {
+              console.warn('[useAuth] Corrupted cookie in getUser, clearing session');
+              try {
+                await supabase.auth.signOut({ scope: 'local' });
+              } catch (clearErr) {
+                // Ignore
+              }
+              setUser(null);
+              currentUserIdRef.current = null;
+              return;
+            }
+            throw getUserErr;
+          }
+          return;
         }
 
-        if (user) {
-          await fetchProfile(user);
+        if (session?.user) {
+          // Session restored successfully - user is automatically logged in
+          console.log('[useAuth] ✅ Session restored automatically for user:', session.user.id);
+          await fetchProfile(session.user);
+          currentUserIdRef.current = session.user.id;
         } else {
+          // No valid session - user needs to log in
+          console.log('[useAuth] No valid session found - user needs to log in');
           setUser(null);
+          currentUserIdRef.current = null;
         }
       } catch (err: any) {
         if (!isMounted) return;
         // AuthSessionMissingError is expected when no user is logged in
         if (err?.message?.includes('session_missing') || err?.name === 'AuthSessionMissingError') {
           // This is normal - no user is logged in
+          console.log('[useAuth] No authenticated user (expected)');
           setUser(null);
+          currentUserIdRef.current = null;
+        } else if (err?.message?.includes('JSON') || err?.message?.includes('Unexpected token')) {
+          // Corrupted cookie - clear it
+          console.warn('[useAuth] Corrupted cookie in catch block, clearing session');
+          try {
+            await supabase.auth.signOut({ scope: 'local' });
+          } catch (clearErr) {
+            // Ignore
+          }
+          setUser(null);
+          currentUserIdRef.current = null;
         } else {
           // Actual error
-          console.error('Error checking user authentication:', err);
+          console.error('[useAuth] Error checking user authentication:', err);
           setError('Failed to check user authentication');
           setUser(null);
+          currentUserIdRef.current = null;
         }
       } finally {
         if (isMounted) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-auth.ts:274',message:'checkUser COMPLETE - setting isLoading=false',data:{hasUser:!!user},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
           setIsLoading(false);
         }
       }
     };
+
     checkUser();
-    return () => { isMounted = false; };
+    return () => { 
+      isMounted = false;
+      hasRun = false;
+    };
   }, [fetchProfile]);
+
+  // Update ref when user changes
+  useEffect(() => {
+    currentUserIdRef.current = user?.id || null;
+  }, [user?.id]);
 
   // Subscribe to auth state changes
   useEffect(() => {
     let isMounted = true;
+    let subscription: any = null;
     
     // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!isMounted) return;
-        setIsLoading(true);
-        setError(null);
-
-        try {
-          if (session?.user) {
-            // User is authenticated
-            console.log(`Auth event detected (${event}), fetching profile for user:`, session.user.id);
-            await fetchProfile(session.user);
+    const setupListener = async () => {
+      const { data } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-auth.ts:294',message:'onAuthStateChange triggered',data:{event,hasSession:!!session,userId:session?.user?.id||null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
+          if (!isMounted) return;
+        
+          // Skip loading state for token refresh if user hasn't changed
+          const newUserId = session?.user?.id || null;
+          const userChanged = currentUserIdRef.current !== newUserId;
+          
+          // Only show loading for significant events or user changes
+          const shouldShowLoading = userChanged || 
+            event === 'SIGNED_IN' || 
+            event === 'SIGNED_OUT' || 
+            event === 'USER_UPDATED' ||
+            (event === 'TOKEN_REFRESHED' && !session?.user);
+          
+          // Track if we set loading to true, so we know to set it back to false
+          let didSetLoading = false;
+          if (shouldShowLoading) {
+            setIsLoading(true);
+            didSetLoading = true;
           } else {
-            // User is signed out or session invalid
-            console.log(`Auth event detected (${event}), no authenticated user found.`);
-            setUser(null);
-          }
-        } catch (err) {
-          console.error("Error handling auth state change:", err);
-          setError('Authentication state update failed');
-          setUser(null);
-        } finally {
-          if (isMounted) {
+            // Ensure loading is false if we're not showing loading state
+            // This prevents stale loading state from previous operations
             setIsLoading(false);
           }
+          setError(null);
+
+          try {
+            if (session?.user) {
+              // Only fetch profile if user changed or it's a significant event
+              if (userChanged || event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+                console.log(`Auth event detected (${event}), fetching profile for user:`, session.user.id);
+                await fetchProfile(session.user);
+                currentUserIdRef.current = session.user.id;
+              } else {
+                // For token refresh with same user, just update the ref without fetching
+                currentUserIdRef.current = session.user.id;
+                console.log(`Auth event detected (${event}), user unchanged, skipping profile fetch`);
+              }
+            } else {
+              // User is signed out or session invalid
+              // Always handle SIGNED_OUT events and cases where we had a user but session is now invalid
+              if (userChanged || event === 'SIGNED_OUT' || currentUserIdRef.current !== null) {
+                console.log(`Auth event detected (${event}), no authenticated user found.`);
+                setUser(null);
+                currentUserIdRef.current = null;
+              }
+            }
+          } catch (err) {
+            console.error("Error handling auth state change:", err);
+            setError('Authentication state update failed');
+            setUser(null);
+            currentUserIdRef.current = null;
+          } finally {
+            // Only set loading to false if we set it to true earlier
+            if (isMounted && didSetLoading) {
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-auth.ts:348',message:'onAuthStateChange COMPLETE - setting isLoading=false',data:{event,didSetLoading},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+              // #endregion
+              setIsLoading(false);
+            }
+          }
         }
-      }
-    );
+      );
+      subscription = data.subscription;
+    };
+    
+    setupListener();
 
     return () => {
       isMounted = false;
@@ -203,24 +396,86 @@ export function useAuth() {
     setIsLoading(true);
     setError(null);
     try {
+      // Validate Supabase client is available
+      if (!supabase) {
+        throw new Error('Supabase client is not initialized. Please check your environment variables.');
+      }
+
+      // Check if environment variables are set
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        throw new Error('Supabase configuration is missing. Please check your environment variables.');
+      }
+
+      // Clear any potentially corrupted cookies before signing in
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch (clearError) {
+        // Ignore errors when clearing cookies - they might not exist
+        console.log('[useAuth] Clearing previous session cookies');
+      }
+
       console.log('Starting signin process for:', email);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) throw error;
-      if (!data.user) throw new Error('Login failed: No user returned.');
+      
+      let data, error;
+      try {
+        const result = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        data = result.data;
+        error = result.error;
+      } catch (fetchError: any) {
+        // Handle network/JSON parsing errors
+        if (fetchError?.message?.includes('Failed to fetch') || 
+            fetchError?.message?.includes('NetworkError') ||
+            fetchError?.message?.includes('JSON') ||
+            fetchError?.message?.includes('Unexpected token')) {
+          throw new Error('Network error: Unable to connect to authentication service. Please check your internet connection and Supabase configuration.');
+        }
+        throw fetchError;
+      }
+      
+      if (error) {
+        // Handle specific error types
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+          throw new Error('Network error: Unable to connect to authentication service. Please check your internet connection and try again.');
+        }
+        throw error;
+      }
+      
+      if (!data?.user) {
+        throw new Error('Login failed: No user returned.');
+      }
+      
       console.log('Sign in API call successful for user:', data.user.id);
       
       // Auth state change listener will handle profile fetching and state update
       router.refresh(); // Refresh server components if needed
       return true;
     } catch (err: any) {
-      // Only log unexpected errors (not invalid credentials)
-      if (process.env.NODE_ENV === 'development' && !err?.message?.includes('Invalid login credentials')) {
-        console.error('Complete sign in error:', err);
+      console.error('Sign in error:', err);
+      
+      // Provide user-friendly error messages
+      let errorMessage = 'Failed to sign in';
+      
+      if (err?.message) {
+        if (err.message.includes('Failed to fetch') || 
+            err.message.includes('NetworkError') ||
+            err.message.includes('JSON') ||
+            err.message.includes('Unexpected token')) {
+          errorMessage = 'Network error: Unable to connect to authentication service. Please check your internet connection and Supabase URL configuration.';
+        } else if (err.message.includes('Invalid login credentials')) {
+          errorMessage = 'Invalid email or password. Please try again.';
+        } else if (err.message.includes('Email not confirmed')) {
+          errorMessage = 'Please verify your email address before signing in.';
+        } else if (err.message.includes('Supabase')) {
+          errorMessage = err.message;
+        } else {
+          errorMessage = err.message;
+        }
       }
-      setError(err.message || 'Failed to sign in');
+      
+      setError(errorMessage);
       setIsLoading(false); // Reset loading on error
       return false;
     }

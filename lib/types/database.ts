@@ -29,6 +29,7 @@ export type Database = {
           rejected_by: string | null
           status: string | null
           title: string
+          token_id: string | null
           updated_at: string | null
           user_id: string | null
         }
@@ -46,6 +47,7 @@ export type Database = {
           rejected_by?: string | null
           status?: string | null
           title: string
+          token_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -63,6 +65,7 @@ export type Database = {
           rejected_by?: string | null
           status?: string | null
           title?: string
+          token_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -142,6 +145,7 @@ export type Database = {
           requested_at: string
           requested_by: string
           status: string
+          token_id: string | null
           transaction_hash: string | null
           updated_at: string | null
         }
@@ -157,6 +161,7 @@ export type Database = {
           requested_at?: string
           requested_by: string
           status?: string
+          token_id?: string | null
           transaction_hash?: string | null
           updated_at?: string | null
         }
@@ -172,6 +177,7 @@ export type Database = {
           requested_at?: string
           requested_by?: string
           status?: string
+          token_id?: string | null
           transaction_hash?: string | null
           updated_at?: string | null
         }

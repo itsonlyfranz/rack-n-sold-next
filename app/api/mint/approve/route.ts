@@ -4,9 +4,10 @@ import { cookies } from 'next/headers';
 import type { Database } from '@/lib/types/database';
 import { privateKeyToAccount } from "thirdweb/wallets";
 import { polygon } from "thirdweb/chains";
-import { createThirdwebClient, sendAndConfirmTransaction } from "thirdweb";
+import { createThirdwebClient, sendAndConfirmTransaction, getContractEvents } from "thirdweb";
 import { getContract } from "thirdweb";
 import { mintTo } from "thirdweb/extensions/erc721";
+import { transferEvent } from "thirdweb/extensions/erc721";
 
 // Environment variables
 const adminPrivateKey = process.env.THIRDWEB_ADMIN_PRIVATE_KEY;
@@ -213,6 +214,35 @@ export async function POST(request: NextRequest) {
       });
       console.log('[Mint Approve API] Mint transaction sent:', receipt.transactionHash);
 
+      // Extract token_id from Transfer event logs
+      let tokenId: string | null = null;
+      try {
+        // Get Transfer events from the transaction receipt
+        const events = await getContractEvents({
+          contract,
+          events: [transferEvent()],
+          fromBlock: receipt.blockNumber,
+          toBlock: receipt.blockNumber
+        });
+
+        // Find the Transfer event for this transaction
+        const mintEvent = events.find(
+          event => event.transactionHash === receipt.transactionHash &&
+                   event.args.to === adminAccount.address &&
+                   event.args.from === '0x0000000000000000000000000000000000000000'
+        );
+
+        if (mintEvent && mintEvent.args.tokenId) {
+          tokenId = mintEvent.args.tokenId.toString();
+          console.log('[Mint Approve API] Extracted token_id:', tokenId);
+        } else {
+          console.warn('[Mint Approve API] Could not extract token_id from Transfer event');
+        }
+      } catch (eventError) {
+        console.error('[Mint Approve API] Error extracting token_id:', eventError);
+        // Continue without token_id - it's not critical for approval
+      }
+
       // 8. Update mint request with approval details
       const { error: updateError } = await supabase
         .from('mint_requests')
@@ -221,7 +251,8 @@ export async function POST(request: NextRequest) {
           approved_by: userId,
           approved_at: new Date().toISOString(),
           admin_wallet_address: adminAccount.address,
-          transaction_hash: receipt.transactionHash
+          transaction_hash: receipt.transactionHash,
+          token_id: tokenId
         })
         .eq('id', mintRequestId);
 
@@ -229,11 +260,12 @@ export async function POST(request: NextRequest) {
         console.error('[Mint Approve API] Error updating mint request:', updateError);
       }
 
-      // 9. Update artwork status to minted
+      // 9. Update artwork status to minted and store token_id
       const { error: artworkUpdateError } = await supabase
         .from('artworks')
         .update({ 
           status: 'minted',
+          token_id: tokenId,
           updated_at: new Date().toISOString()
         })
         .eq('id', artwork.id);
@@ -250,6 +282,7 @@ export async function POST(request: NextRequest) {
         data: {
           transactionHash: receipt.transactionHash,
           adminWallet: adminAccount.address,
+          tokenId: tokenId,
           artworkId: artwork.id,
           artworkTitle: artwork.title
         }

@@ -3,8 +3,14 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { ToastProvider } from '@/components/ui/toast'
 import { Providers as ThirdwebProviders } from './providers'
+import { ThemeProvider } from '@/components/theme/theme-provider'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ 
+  subsets: ['latin'],
+  display: 'swap',
+  fallback: ['system-ui', 'arial'],
+  variable: '--font-inter',
+})
 
 export const metadata: Metadata = {
   title: 'Rack N Sold - NFT Marketplace',
@@ -18,17 +24,24 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.className} bg-gray-950 text-gray-50`}>
-        <ThirdwebProviders>
-          <ToastProvider>
-            <div className="flex flex-col min-h-screen">
-              <main className="flex-grow">
-                {children}
-              </main>
-            </div>
-          </ToastProvider>
-        </ThirdwebProviders>
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem={false}
+          disableTransitionOnChange
+        >
+          <ThirdwebProviders>
+            <ToastProvider>
+              <div className="flex flex-col min-h-screen">
+                <main className="flex-grow">
+                  {children}
+                </main>
+              </div>
+            </ToastProvider>
+          </ThirdwebProviders>
+        </ThemeProvider>
       </body>
     </html>
   )

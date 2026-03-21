@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:debug": "next dev --turbopack --inspect",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -11,7 +12,9 @@
     "test:watch": "jest --watch",
     "cypress": "cypress open",
     "cypress:headless": "cypress run",
-    "setup:supabase": "node setup-supabase.js"
+    "setup:supabase": "node setup-supabase.js",
+    "analyze": "next experimental-analyze",
+    "upgrade": "next upgrade"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.2",
@@ -41,10 +44,12 @@
     "clsx": "^2.0.0",
     "dotenv": "^16.4.7",
     "ethers": "^5.8.0",
+    "ethers-v6": "npm:ethers@^6.16.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.479.0",
-    "next": "16.0.0",
+    "next": "16.1.0",
     "next-devtools-mcp": "^0.2.1",
+    "next-themes": "^0.4.6",
     "opensea-js": "^7.1.18",
     "p-limit": "^6.2.0",
     "react": "19.2.0",
@@ -68,7 +73,7 @@
     "autoprefixer": "^10.4.16",
     "cypress": "^13.6.0",
     "eslint": "^9.0.0",
-    "eslint-config-next": "16.0.0",
+    "eslint-config-next": "16.1.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "postcss": "^8.4.31",

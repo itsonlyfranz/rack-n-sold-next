@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { ArtworkCard } from '@/components/artwork/artwork-card';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/hooks/use-auth';
@@ -10,71 +10,91 @@ import type { ArtworkWithUser } from '@/lib/types';
 type FilterTab = 'all' | 'my-artworks';
 
 export function ClientGallery() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [artworks, setArtworks] = useState<ArtworkWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
+  const hasLoadedOnce = useRef(false);
+  const lastUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    async function fetchArtworks() {
-      try {
-        setLoading(true);
-        
-        console.log('Fetching artworks from client component...');
-        
-        // Fetch artworks based on login status
-        // Logged-in users (admin or regular): only see their own artworks (all statuses)
-        // Guests: only see minted/published artworks from everyone
-        let query = supabase.from('artworks').select('*');
-        
-        if (user) {
-          // Logged-in users only see their own artworks
-          query = query.eq('user_id', user.id);
-        } else {
-          // Guests only see minted/published artworks
-          query = query.in('status', ['minted', 'published']);
-        }
-        
-        const { data, error } = await query.order('created_at', { ascending: false });
-          
-        console.log('Client fetch result:', { 
-          count: data?.length || 0, 
-          hasError: !!error,
-          errorMessage: error?.message 
-        });
-        
-        if (error) {
-          setError('Failed to load artworks. Please try again later.');
-          console.error('Error fetching artworks:', error);
-          return;
-        }
-        
-        if (!data || data.length === 0) {
-          // No artworks found
-          return;
-        }
-        
-        // Transform the data to add the user object
-        const artworksWithUser = data.map(artwork => ({
-          ...artwork,
-          user: {
-            id: artwork.user_id,
-          }
-        }));
-        
-        setArtworks(artworksWithUser as ArtworkWithUser[]);
-      } catch (err) {
-        console.error('Unexpected error:', err);
-        setError('An unexpected error occurred. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
+    // Don't fetch if auth is still loading
+    if (authLoading) {
+      return;
     }
+
+    // Get current user ID (null if not logged in)
+    const currentUserId = user?.id || null;
     
-    // Wait for auth to resolve; rerun when user changes
-    fetchArtworks();
-  }, [user?.id]);
+    // Only fetch if:
+    // 1. We haven't loaded before, OR
+    // 2. The user ID has actually changed (login/logout)
+    const userIdChanged = lastUserIdRef.current !== currentUserId;
+    
+    if (!hasLoadedOnce.current || userIdChanged) {
+      hasLoadedOnce.current = true;
+      lastUserIdRef.current = currentUserId;
+      
+      const fetchArtworks = async () => {
+        try {
+          setLoading(true);
+          
+          console.log('Fetching artworks from client component...');
+          
+          // Fetch artworks based on login status
+          // Logged-in users (admin or regular): only see their own artworks (all statuses)
+          // Guests: only see minted/published artworks from everyone
+          let query = supabase.from('artworks').select('*');
+          
+          if (user) {
+            // Logged-in users only see their own artworks
+            query = query.eq('user_id', user.id);
+          } else {
+            // Guests only see minted/published artworks
+            query = query.in('status', ['minted', 'published']);
+          }
+          
+          const { data, error } = await query.order('created_at', { ascending: false });
+            
+          console.log('Client fetch result:', { 
+            count: data?.length || 0, 
+            hasError: !!error,
+            errorMessage: error?.message 
+          });
+          
+          if (error) {
+            setError('Failed to load artworks. Please try again later.');
+            console.error('Error fetching artworks:', error);
+            return;
+          }
+          
+          if (!data || data.length === 0) {
+            // No artworks found - clear any previous artworks
+            setArtworks([]);
+            return;
+          }
+          
+          // Transform the data to add the user object
+          const artworksWithUser = data.map(artwork => ({
+            ...artwork,
+            user: {
+              id: artwork.user_id,
+            }
+          }));
+          
+          setArtworks(artworksWithUser as ArtworkWithUser[]);
+        } catch (err) {
+          console.error('Unexpected error:', err);
+          setError('An unexpected error occurred. Please try again later.');
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      fetchArtworks();
+    }
+  }, [user?.id, authLoading]);
   
   if (loading) {
     return (

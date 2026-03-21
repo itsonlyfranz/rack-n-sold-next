@@ -122,7 +122,7 @@ export function UserNFTDashboard() {
                   {nft.status === 'pending_mint' && (
                     <Button 
                       onClick={() => handleMintOnOpenSea(nft)} 
-                      className="w-full bg-blue-600 hover:bg-blue-700"
+                      className="w-full bg-emerald-600 hover:bg-emerald-700"
                     >
                       Mint on OpenSea
                     </Button>

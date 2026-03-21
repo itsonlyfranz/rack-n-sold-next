@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/main-layout';
@@ -56,6 +56,11 @@ interface SellRequestWithArtwork {
 
 export default function AdminMintRequestsPage() {
   const { user, isLoading: isAuthLoading } = useAuth();
+  // #region agent log
+  if (typeof window !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:58',message:'AdminPage RENDER',data:{isAuthLoading,hasUser:!!user,userRole:user?.role||null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+  }
+  // #endregion
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('mint');
   const [mintRequests, setMintRequests] = useState<MintRequestWithArtwork[]>([]);
@@ -65,6 +70,8 @@ export default function AdminMintRequestsPage() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sellError, setSellError] = useState<string | null>(null);
+  const hasLoadedOnce = useRef(false);
+  const hasDataLoaded = useRef(false);
 
   useEffect(() => {
     // Redirect if not authenticated or not admin
@@ -74,13 +81,20 @@ export default function AdminMintRequestsPage() {
   }, [user, isAuthLoading, router]);
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    // Only fetch data if we haven't loaded it before OR if user changes
+    if (user?.role === 'admin' && (!hasLoadedOnce.current || !hasDataLoaded.current)) {
+      hasLoadedOnce.current = true;
       fetchMintRequests();
       fetchSellRequests();
     }
   }, [user]);
 
   const fetchMintRequests = async (skipLoadingState = false) => {
+    // #region agent log
+    if (typeof window !== 'undefined') {
+      fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:87',message:'fetchMintRequests ENTRY',data:{skipLoadingState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+    }
+    // #endregion
     try {
       if (!skipLoadingState) {
         setIsLoading(true);
@@ -111,7 +125,15 @@ export default function AdminMintRequestsPage() {
       }
 
       setMintRequests(data as MintRequestWithArtwork[]);
+      if (!skipLoadingState) {
+        hasDataLoaded.current = true;
+      }
     } catch (err) {
+      // #region agent log
+      if (typeof window !== 'undefined') {
+        fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:121',message:'fetchMintRequests ERROR',data:{error:err instanceof Error?err.message:String(err)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+      }
+      // #endregion
       console.error('Error fetching mint requests:', err);
       setError(err instanceof Error ? err.message : 'Failed to load mint requests');
     } finally {
@@ -147,6 +169,9 @@ export default function AdminMintRequestsPage() {
       console.log('[Admin Dashboard] Fetched sell requests:', data);
       setSellRequests(data as SellRequestWithArtwork[]);
       setIsInitialLoad(false);
+      if (!skipLoadingState) {
+        hasDataLoaded.current = true;
+      }
     } catch (err) {
       console.error('Error fetching sell requests:', err);
       setSellError(err instanceof Error ? err.message : 'Failed to load sell requests');
@@ -168,13 +193,21 @@ export default function AdminMintRequestsPage() {
     await fetchSellRequests(true);
   };
 
-  if (isAuthLoading) {
+  // Only show "Authenticating..." if we haven't loaded data yet
+  // This prevents showing the loading state when navigating back to the page
+  // If we already have data, show it even if auth is temporarily loading
+  if (isAuthLoading && !hasDataLoaded.current) {
+    // #region agent log
+    if (typeof window !== 'undefined') {
+      fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:184',message:'Showing AUTHENTICATING screen',data:{isAuthLoading,hasDataLoaded:hasDataLoaded.current},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+    }
+    // #endregion
     return (
       <MainLayout>
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-600 mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
               <p className="text-gray-400">Authenticating...</p>
             </div>
           </div>
@@ -183,8 +216,18 @@ export default function AdminMintRequestsPage() {
     );
   }
 
-  if (!user || user.role !== 'admin') {
+  // Only block rendering if we're sure there's no admin user (not just loading)
+  // Allow rendering with cached data if auth is temporarily loading
+  if (!isAuthLoading && (!user || user.role !== 'admin')) {
     return null; // Redirect is handled in useEffect
+  }
+  
+  // If we have data but user is temporarily undefined during re-auth, show the data
+  if (hasDataLoaded.current && !user && isAuthLoading) {
+    // Render the page with existing data while auth reloads
+  } else if (!hasDataLoaded.current && (!user || user.role !== 'admin')) {
+    // No data yet and no valid user - show nothing (will redirect or show loading)
+    return null;
   }
 
   return (
@@ -203,7 +246,7 @@ export default function AdminMintRequestsPage() {
                 onClick={() => setActiveTab('mint')}
                 className={`px-4 py-2 font-medium transition-colors ${
                   activeTab === 'mint'
-                    ? 'text-violet-400 border-b-2 border-violet-400'
+                    ? 'text-emerald-400 border-b-2 border-emerald-400'
                     : 'text-gray-400 hover:text-gray-300'
                 }`}
               >
@@ -213,7 +256,7 @@ export default function AdminMintRequestsPage() {
                 onClick={() => setActiveTab('sell')}
                 className={`px-4 py-2 font-medium transition-colors ${
                   activeTab === 'sell'
-                    ? 'text-violet-400 border-b-2 border-violet-400'
+                    ? 'text-emerald-400 border-b-2 border-emerald-400'
                     : 'text-gray-400 hover:text-gray-300'
                 }`}
               >
@@ -225,7 +268,7 @@ export default function AdminMintRequestsPage() {
             <div className={activeTab === 'mint' ? 'block' : 'hidden'}>
               {isLoading ? (
                 <div className="bg-gray-900 rounded-lg p-12 text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-600 mx-auto mb-4"></div>
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
                   <p className="text-gray-400">Loading mint requests...</p>
                 </div>
               ) : (

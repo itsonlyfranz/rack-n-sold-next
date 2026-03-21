@@ -6,7 +6,8 @@ import { useAuth } from '@/lib/hooks/use-auth'
 import { useCartStore } from '@/lib/store/cart'
 import { cn } from '@/lib/utils'
 import { ConnectButton, useActiveAccount } from "thirdweb/react"
-import { thirdwebClient } from "@/lib/thirdweb-client";
+import { thirdwebClient } from "@/lib/thirdweb-client"
+import { ThemeToggle } from '@/components/theme/theme-toggle'
 
 export function Header() {
   const { user, signOut, isLoading: authLoading } = useAuth()
@@ -19,6 +20,18 @@ export function Header() {
   useEffect(() => {
     setIsMounted(true)
   }, [])
+  
+  // Debug logging
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Header] Auth state:', { 
+        hasUser: !!user, 
+        userEmail: user?.email,
+        isLoading: authLoading,
+        hasActiveAccount: !!activeAccount 
+      })
+    }
+  }, [user, authLoading, activeAccount])
   
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen)
@@ -41,7 +54,7 @@ export function Header() {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="text-xl font-bold text-white">
-            Rack <span className="text-violet-500">n</span> Sold
+            Rack <span className="text-emerald-500">n</span> Sold
           </Link>
           
           {/* Desktop Navigation */}
@@ -70,22 +83,25 @@ export function Header() {
             {user?.role === 'admin' && (
               <Link
                 href="/admin/mint-requests"
-                className="text-sm text-violet-400 hover:text-violet-300 font-medium"
+                className="text-sm text-emerald-400 hover:text-emerald-300 font-medium"
               >
                 Admin Dashboard
               </Link>
             )}
             {/* Combined user account and wallet display */}
-            {!authLoading && (user || activeAccount) ? (
+            {/* Show user menu if we have user/account data, even during loading (optimistic UI) */}
+            {(user || activeAccount) ? (
               <div className="flex items-center space-x-2 ml-2">
+                <ThemeToggle />
                 {/* Show ConnectButton when user is logged in but no wallet connected */}
-                {user && !activeAccount && (
+                {/* Temporarily hidden */}
+                {/* {user && !activeAccount && (
                   <ConnectButton 
                     client={thirdwebClient}
                     theme="dark" 
                     connectButton={{ label: "Connect Wallet" }}
                   />
-                )}
+                )} */}
                 
                 {/* Show user menu */}
                 <div className="relative">
@@ -156,7 +172,8 @@ export function Header() {
                     </Link> */}
                     
                     {/* Wallet Management */}
-                    {activeAccount && !user && (
+                    {/* Temporarily hidden */}
+                    {/* {activeAccount && !user && (
                       <div className="border-t border-gray-700 mt-1 pt-1">
                         <div className="px-4 py-1">
                           <ConnectButton 
@@ -167,7 +184,7 @@ export function Header() {
                           />
                         </div>
                       </div>
-                    )}
+                    )} */}
                     
                     {/* Sign Out */}
                     {user && (
@@ -186,11 +203,12 @@ export function Header() {
               </div>
             ) : !authLoading ? (
               <div className="flex items-center space-x-2">
-                <ConnectButton 
+                {/* Temporarily hidden */}
+                {/* <ConnectButton 
                   client={thirdwebClient}
                   theme="dark" 
                   connectButton={{ label: "Connect Wallet" }}
-                />
+                /> */}
                 <Link
                   href="/auth/login"
                   className="rounded-md bg-gray-800 px-4 py-2 text-sm text-white hover:bg-gray-700"
@@ -199,7 +217,7 @@ export function Header() {
                 </Link>
                 <Link
                   href="/auth/signup"
-                  className="rounded-md bg-violet-600 px-4 py-2 text-sm text-white hover:bg-violet-700"
+                  className="rounded-md bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700"
                 >
                   Sign Up
                 </Link>
@@ -227,7 +245,7 @@ export function Header() {
                 />
               </svg>
               {cartCount > 0 && (
-                <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-violet-600 text-xs text-white">
+                <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-xs text-white">
                   {cartCount}
                 </span>
               )}
@@ -253,7 +271,7 @@ export function Header() {
                 />
               </svg>
               {cartCount > 0 && (
-                <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-violet-600 text-xs text-white">
+                <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-xs text-white">
                   {cartCount}
                 </span>
               )}
@@ -317,16 +335,17 @@ export function Header() {
                 Artists
               </Link>
               {/* Use Thirdweb ConnectButton for mobile */}
-              <div className="px-3 py-2">
+              {/* Temporarily hidden */}
+              {/* <div className="px-3 py-2">
                 <ConnectButton 
                   client={thirdwebClient}
                   theme="dark" 
                   connectButton={{ label: "Connect Wallet" }}
                 />
-              </div>
+              </div> */}
               {!authLoading && user ? (
                 <div className="border-t border-gray-700 pt-4 pb-3">
-                  <div className="flex items-center px-5">
+                  <div className="flex items-center justify-between px-5">
                     <div className="ml-3">
                       <div className="text-base font-medium text-white">
                         {user.email?.split('@')[0]}
@@ -335,6 +354,7 @@ export function Header() {
                         {user.email}
                       </div>
                     </div>
+                    <ThemeToggle />
                   </div>
                   <div className="mt-3 space-y-1 px-2">
                     <Link
@@ -373,7 +393,7 @@ export function Header() {
                     <Link
                       href="/auth/signup"
                       onClick={closeMenu}
-                      className="block rounded-md bg-violet-600 px-3 py-2 text-base text-white hover:bg-violet-700"
+                      className="block rounded-md bg-emerald-600 px-3 py-2 text-base text-white hover:bg-emerald-700"
                     >
                       Sign Up
                     </Link>

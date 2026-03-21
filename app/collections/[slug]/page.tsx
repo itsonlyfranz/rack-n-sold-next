@@ -1,5 +1,3 @@
-"use cache";
-
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
@@ -194,7 +192,7 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
     <MainLayout>
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <a href="/marketplace" className="text-blue-500 hover:underline mb-4 inline-block">
+          <a href="/marketplace" className="text-emerald-500 hover:underline mb-4 inline-block">
             &larr; Back to Marketplace
           </a>
         </div>
@@ -212,7 +210,7 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
                 priority
               />
               {collection.verified && (
-                <div className="absolute top-2 right-2 bg-blue-500 text-white p-1 rounded-full">
+                <div className="absolute top-2 right-2 bg-emerald-500 text-white p-1 rounded-full">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
                     <path fillRule="evenodd" d="M19.916 4.626a.75.75 0 01.208 1.04l-9 13.5a.75.75 0 01-1.154.114l-6-6a.75.75 0 011.06-1.06l5.353 5.353 8.493-12.739a.75.75 0 011.04-.208z" clipRule="evenodd" />
                   </svg>

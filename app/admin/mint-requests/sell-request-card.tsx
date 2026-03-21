@@ -4,7 +4,6 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -38,10 +37,9 @@ interface SellRequestCardProps {
 
 export function SellRequestCard({ request, onRequestProcessed }: SellRequestCardProps) {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showApproveForm, setShowApproveForm] = useState(false);
-  const [openseaUrl, setOpenseaUrl] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectForm, setShowRejectForm] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const artwork = request.artworks;
   const requester = request.requester;
@@ -57,18 +55,12 @@ export function SellRequestCard({ request, onRequestProcessed }: SellRequestCard
   }
 
   const handleApprove = async () => {
-    if (!openseaUrl.trim()) {
-      alert('Please enter the OpenSea listing URL');
-      return;
-    }
-
-    // Basic URL validation
-    if (!openseaUrl.includes('opensea.io')) {
-      alert('Please enter a valid OpenSea URL');
+    if (!confirm('Create OpenSea listing and approve this sell request? The NFT will be listed automatically.')) {
       return;
     }
 
     setIsProcessing(true);
+    setErrorMessage('');
 
     try {
       const response = await fetch('/api/sell/approve', {
@@ -79,7 +71,6 @@ export function SellRequestCard({ request, onRequestProcessed }: SellRequestCard
         body: JSON.stringify({
           sellRequestId: request.id,
           action: 'approve',
-          openseaListingUrl: openseaUrl,
         }),
       });
 
@@ -89,11 +80,13 @@ export function SellRequestCard({ request, onRequestProcessed }: SellRequestCard
         throw new Error(data.error || 'Failed to approve sell request');
       }
 
-      alert('Sell request approved successfully!');
+      alert(`Success! NFT listed on OpenSea.\n\nView listing: ${data.openseaUrl || 'OpenSea'}`);
       onRequestProcessed();
     } catch (error) {
       console.error('Error approving sell request:', error);
-      alert(`Failed to approve: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      setErrorMessage(errorMsg);
+      alert(`Failed to approve and list: ${errorMsg}`);
     } finally {
       setIsProcessing(false);
     }
@@ -147,7 +140,7 @@ export function SellRequestCard({ request, onRequestProcessed }: SellRequestCard
       <CardHeader>
         <CardTitle className="text-white flex items-center justify-between">
           <span>OpenSea Listing Request</span>
-          <Badge variant="secondary" className="bg-blue-600">
+          <Badge variant="secondary" className="bg-emerald-600">
             Sell Request
           </Badge>
         </CardTitle>
@@ -206,15 +199,32 @@ export function SellRequestCard({ request, onRequestProcessed }: SellRequestCard
               </div>
             )}
 
+            {/* Error Message */}
+            {errorMessage && (
+              <div className="p-3 bg-red-900/20 border border-red-500 rounded text-sm text-red-400 mb-4">
+                {errorMessage}
+              </div>
+            )}
+
             {/* Action Buttons */}
-            {!showApproveForm && !showRejectForm && (
+            {!showRejectForm && (
               <div className="flex gap-2 pt-4">
                 <Button
-                  onClick={() => setShowApproveForm(true)}
+                  onClick={handleApprove}
                   className="flex-1 bg-green-600 hover:bg-green-700"
                   disabled={isProcessing}
                 >
-                  Approve & List
+                  {isProcessing ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Creating Listing...
+                    </span>
+                  ) : (
+                    'Approve & List on OpenSea'
+                  )}
                 </Button>
                 
                 <Button
@@ -225,50 +235,6 @@ export function SellRequestCard({ request, onRequestProcessed }: SellRequestCard
                 >
                   Reject
                 </Button>
-              </div>
-            )}
-
-            {/* Approve Form */}
-            {showApproveForm && (
-              <div className="space-y-3 pt-4 border-t border-gray-700">
-                <div>
-                  <Label htmlFor="opensea-url" className="text-white">
-                    OpenSea Listing URL
-                  </Label>
-                  <Input
-                    id="opensea-url"
-                    type="url"
-                    placeholder="https://opensea.io/assets/..."
-                    value={openseaUrl}
-                    onChange={(e) => setOpenseaUrl(e.target.value)}
-                    className="bg-gray-800 border-gray-700 text-white"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    Enter the OpenSea listing URL after you've listed the NFT
-                  </p>
-                </div>
-                
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleApprove}
-                    className="flex-1 bg-green-600 hover:bg-green-700"
-                    disabled={isProcessing}
-                  >
-                    {isProcessing ? 'Approving...' : 'Confirm Approval'}
-                  </Button>
-                  
-                  <Button
-                    onClick={() => {
-                      setShowApproveForm(false);
-                      setOpenseaUrl('');
-                    }}
-                    variant="outline"
-                    className="flex-1"
-                    disabled={isProcessing}
-                  >
-                    Cancel
-                  </Button>
-                </div>
               </div>
             )}
 

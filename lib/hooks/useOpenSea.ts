@@ -84,6 +84,9 @@ export function useNFTAssets(params: {
     const fetchAssets = async () => {
       try {
         setLoading(true);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H6',location:'lib/hooks/useOpenSea.ts:86',message:'useNFTAssets_start',data:{collection:params.collection ?? null,owner:params.owner ?? null,tokenIdsCount:params.tokenIds?.length ?? 0,limit:params.limit ?? 20},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion agent log
         
         // Construct query parameters
         const queryParams = new URLSearchParams();
@@ -98,6 +101,9 @@ export function useNFTAssets(params: {
         const apiUrl = `/api/opensea/assets?${queryParams.toString()}`;
         
         const response = await fetch(apiUrl);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H6',location:'lib/hooks/useOpenSea.ts:104',message:'useNFTAssets_response',data:{status:response.status,ok:response.ok},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion agent log
         
         if (!response.ok) {
           throw new Error(`API error: ${response.statusText}`);
@@ -107,6 +113,9 @@ export function useNFTAssets(params: {
         setAssets(data.assets || []);
         setError(null);
       } catch (err) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H7',location:'lib/hooks/useOpenSea.ts:114',message:'useNFTAssets_error',data:{message:err instanceof Error ? err.message : String(err)},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion agent log
         console.error("Error fetching assets:", err);
         setError(err instanceof Error ? err : new Error(String(err)));
       } finally {

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTheme } from 'next-themes';
 import { CustomConnectWallet } from './custom-connect-wallet';
 
 /**
@@ -7,5 +8,6 @@ import { CustomConnectWallet } from './custom-connect-wallet';
  * This provides a unified wallet connection experience
  */
 export function ConnectButton() {
-  return <CustomConnectWallet theme="dark" connectButton={{ label: "Connect Wallet" }} />;
+  const { theme } = useTheme();
+  return <CustomConnectWallet theme={theme === 'dark' ? 'dark' : 'light'} connectButton={{ label: "Connect Wallet" }} />;
 }

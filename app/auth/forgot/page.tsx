@@ -64,7 +64,7 @@ export default function ForgotPasswordPage() {
           />
         </div>
 
-        <Button type="submit" disabled={isLoading} className="w-full bg-blue-600 hover:bg-blue-700">
+        <Button type="submit" disabled={isLoading} className="w-full bg-emerald-600 hover:bg-emerald-700">
           {isLoading ? 'Sending code…' : 'Send OTP'}
         </Button>
       </form>

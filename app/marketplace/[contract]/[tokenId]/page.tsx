@@ -70,12 +70,18 @@ export default function NFTDetailPage() {
       try {
         setLoading(true);
         setError(null);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H6',location:'app/marketplace/[contract]/[tokenId]/page.tsx:72',message:'nftDetail_fetch_start',data:{contract,tokenId},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion agent log
         
         // Debugging information
         console.log(`Fetching NFT details for contract: ${contract}, tokenId: ${tokenId}`);
         
         // Fetch NFT details from our API route using the v2 endpoint for a specific NFT
         const response = await fetch(`/api/opensea/assets?collection=${contract}&token_ids=${tokenId}`);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H6',location:'app/marketplace/[contract]/[tokenId]/page.tsx:80',message:'nftDetail_fetch_response',data:{status:response.status,ok:response.ok},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion agent log
         
         if (!response.ok) {
           const errorData = await response.json();

@@ -66,7 +66,7 @@ export default function CollectionCard({ collection, onClick }: CollectionCardPr
             {collection.name || 'Unnamed Collection'}
           </h3>
           {collection.verified && (
-            <Badge className="h-5 w-5 rounded-full bg-blue-500 p-0 flex items-center justify-center" variant="default">
+            <Badge className="h-5 w-5 rounded-full bg-emerald-500 p-0 flex items-center justify-center" variant="default">
               <svg 
                 xmlns="http://www.w3.org/2000/svg" 
                 viewBox="0 0 24 24" 

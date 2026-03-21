@@ -14,7 +14,7 @@ export function cn(...inputs: ClassValue[]) {
 export function formatPrice(
   price: number,
   options: {
-    currency?: 'USD' | 'EUR' | 'GBP' | 'BDT'
+    currency?: 'USD' | 'EUR' | 'GBP' | 'BDT' | 'PHP'
     notation?: Intl.NumberFormatOptions['notation']
   } = {}
 ) {

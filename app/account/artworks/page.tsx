@@ -66,8 +66,8 @@ export default function SellerArtworksPage() {
       setArtworks(artworksData)
       
       // Calculate stats
-      const sold = artworksData.filter(a => a.sold)
-      const available = artworksData.filter(a => !a.sold)
+      const sold = artworksData.filter(a => a.status === 'sold')
+      const available = artworksData.filter(a => a.status !== 'sold')
       const totalValue = artworksData.reduce((sum, a) => sum + a.price, 0)
       const soldValue = sold.reduce((sum, a) => sum + a.price, 0)
       
@@ -111,10 +111,10 @@ export default function SellerArtworksPage() {
         setStats(prev => ({
           ...prev,
           total: prev.total - 1,
-          sold: deletedArtwork.sold ? prev.sold - 1 : prev.sold,
-          available: !deletedArtwork.sold ? prev.available - 1 : prev.available,
+          sold: deletedArtwork.status === 'sold' ? prev.sold - 1 : prev.sold,
+          available: deletedArtwork.status !== 'sold' ? prev.available - 1 : prev.available,
           totalValue: prev.totalValue - deletedArtwork.price,
-          soldValue: deletedArtwork.sold ? prev.soldValue - deletedArtwork.price : prev.soldValue
+          soldValue: deletedArtwork.status === 'sold' ? prev.soldValue - deletedArtwork.price : prev.soldValue
         }))
       }
     } catch (err) {
@@ -245,12 +245,12 @@ export default function SellerArtworksPage() {
               <div key={artwork.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
                 <div className="relative aspect-square">
                   <Image
-                    src={artwork.image_url}
+                    src={artwork.image_url ?? ''}
                     alt={artwork.title}
                     fill
                     className="object-cover"
                   />
-                  {artwork.sold && (
+                  {artwork.status === 'sold' && (
                     <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
                       <span className="px-3 py-1 bg-green-600 text-white font-medium rounded-full text-sm">
                         Sold
@@ -272,7 +272,7 @@ export default function SellerArtworksPage() {
                       Ξ {artwork.price.toFixed(3)}
                     </span>
                     <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {new Date(artwork.created_at).toLocaleDateString()}
+                      {artwork.created_at ? new Date(artwork.created_at).toLocaleDateString() : '-'}
                     </span>
                   </div>
                   
@@ -283,7 +283,7 @@ export default function SellerArtworksPage() {
                     >
                       View
                     </Link>
-                    {!artwork.sold && (
+                    {artwork.status !== 'sold' && (
                       <Link
                         href={`/account/artworks/edit/${artwork.id}`}
                         className="flex-1 px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-sm font-medium rounded-lg text-center hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"

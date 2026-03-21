@@ -76,9 +76,9 @@ export default function WalletPage() {
           />
         </MetaMaskProvider>
 
-        <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-          <h3 className="font-medium text-blue-800 dark:text-blue-300 mb-2">Why connect your wallet?</h3>
-          <ul className="list-disc list-inside space-y-2 text-sm text-blue-700 dark:text-blue-300">
+        <div className="mt-8 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+          <h3 className="font-medium text-emerald-800 dark:text-emerald-300 mb-2">Why connect your wallet?</h3>
+          <ul className="list-disc list-inside space-y-2 text-sm text-emerald-700 dark:text-emerald-300">
             <li>Securely buy and sell NFTs on our marketplace</li>
             <li>View your on-chain NFT collection in one place</li>
             <li>Sign blockchain transactions without leaving the site</li>

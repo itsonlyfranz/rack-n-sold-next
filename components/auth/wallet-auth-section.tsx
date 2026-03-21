@@ -35,11 +35,12 @@ export function WalletAuthSection() {
         </div>
       ) : (
         <div className="w-full flex items-center justify-center">
-          <CustomConnectWallet 
+          {/* Temporarily hidden */}
+          {/* <CustomConnectWallet 
             theme="dark" 
             btnTitle="Connect Wallet"
             modalSize="wide"
-          />
+          /> */}
         </div>
       )}
       

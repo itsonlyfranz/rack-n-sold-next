@@ -117,11 +117,14 @@ export default function ArtistsClient() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [phpPerWeth, setPhpPerWeth] = useState<number | null>(null);
+  const [rateLoading, setRateLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
     reset,
   } = useForm<ArtworkFormValues>({
@@ -133,6 +136,27 @@ export default function ArtistsClient() {
       artist: '',
     },
   });
+
+  const watchedPrice = watch('price');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/exchange-rate');
+        if (cancelled) return;
+        if (res.ok) {
+          const { phpPerWeth: rate } = await res.json();
+          setPhpPerWeth(rate);
+        }
+      } catch {
+        if (!cancelled) setPhpPerWeth(null);
+      } finally {
+        if (!cancelled) setRateLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     async function loadUser() {
@@ -350,18 +374,18 @@ export default function ArtistsClient() {
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 animate-pulse">
-          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded mb-6"></div>
-          <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded mb-6"></div>
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 p-8 animate-pulse">
+          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg mb-6"></div>
+          <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded-xl mb-6"></div>
           <div className="space-y-4">
             <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
-            <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
             <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
-            <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            <div className="h-24 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
             <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
-            <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded"></div>
-            <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mt-6"></div>
+            <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+            <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded-lg w-1/3 mt-6"></div>
           </div>
         </div>
       </div>
@@ -369,30 +393,41 @@ export default function ArtistsClient() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
-        <div className="p-6">
+    <div className="max-w-3xl mx-auto">
+      <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden transition-all duration-300 hover:shadow-3xl">
+        <div className="p-8 md:p-10">
           {error && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400">
-              {error}
+            <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 dark:border-red-400 rounded-lg text-red-700 dark:text-red-300 shadow-sm animate-in slide-in-from-top-2">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <span className="font-medium">{error}</span>
+              </div>
             </div>
           )}
           
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {/* Image Upload */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Artwork Image
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+            {/* Image Upload Section */}
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                <span className="flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  Artwork Image
+                </span>
+                <span className="block text-xs font-normal text-gray-500 dark:text-gray-400 mt-1">
+                  Upload a high-quality image of your artwork
+                </span>
               </label>
               
               <div 
                 onClick={triggerFileInput}
                 className={`
-                  border-2 border-dashed rounded-lg p-4 text-center cursor-pointer
-                  transition-colors duration-200 ease-in-out
+                  group relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer
+                  transition-all duration-300 ease-in-out
                   ${imagePreview 
-                    ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/20' 
-                    : 'border-gray-300 dark:border-gray-600 hover:border-indigo-400 dark:hover:border-indigo-500'}
+                    ? 'border-emerald-400 dark:border-emerald-600 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 shadow-inner' 
+                    : 'border-gray-300 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-900/50 hover:border-emerald-400 dark:hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 hover:shadow-lg'}
                 `}
               >
                 <input
@@ -404,133 +439,246 @@ export default function ArtistsClient() {
                 />
                 
                 {imagePreview ? (
-                  <div className="relative aspect-square max-h-80 mx-auto overflow-hidden rounded-lg">
+                  <div className="relative aspect-square max-h-96 mx-auto overflow-hidden rounded-xl shadow-lg group-hover:shadow-xl transition-shadow duration-300">
                     <Image
                       src={imagePreview}
                       alt="Artwork preview"
                       fill
-                      className="object-cover"
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
                     />
-                    <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="text-white font-medium">Change Image</span>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                      <div className="bg-white/90 dark:bg-gray-800/90 px-4 py-2 rounded-lg shadow-lg">
+                        <span className="text-gray-900 dark:text-white font-medium text-sm">Change Image</span>
+                      </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="py-12">
-                    <ImageIcon className="h-12 w-12 mx-auto text-gray-400" />
-                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                      Click to upload your artwork image
-                    </p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                      PNG, JPG, GIF up to 5MB
-                    </p>
+                  <div className="py-12 space-y-4">
+                    <div className="mx-auto w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-300">
+                      <ImageIcon className="h-8 w-8 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-base font-medium text-gray-700 dark:text-gray-300 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                        Click to upload your artwork image
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                        PNG, JPG, GIF up to 5MB
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
             
-            {/* Title */}
-            <div>
-              <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Title
-              </label>
-              <input
-                id="title"
-                type="text"
-                {...register('title')}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                placeholder="Enter the title of your artwork"
-              />
-              {errors.title && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.title.message}</p>
-              )}
+            {/* Artwork Details Section */}
+            <div className="space-y-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Artwork Details</h3>
+              
+              {/* Title */}
+              <div className="space-y-2">
+                <label htmlFor="title" className="block text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  Title
+                  <span className="text-red-500 ml-1">*</span>
+                </label>
+                <input
+                  id="title"
+                  type="text"
+                  {...register('title')}
+                  className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-lg shadow-sm 
+                    bg-white dark:bg-gray-900 text-gray-900 dark:text-white
+                    focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 
+                    transition-all duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500
+                    hover:border-gray-300 dark:hover:border-gray-600"
+                  placeholder="Enter the title of your artwork"
+                />
+                {errors.title && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center gap-1 animate-in slide-in-from-top-1">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    {errors.title.message}
+                  </p>
+                )}
+              </div>
+              
+              {/* Artist Name */}
+              <div className="space-y-2">
+                <label htmlFor="artist" className="block text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  Artist Name
+                  <span className="text-red-500 ml-1">*</span>
+                </label>
+                <input
+                  id="artist"
+                  type="text"
+                  {...register('artist')}
+                  className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-lg shadow-sm 
+                    bg-white dark:bg-gray-900 text-gray-900 dark:text-white
+                    focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 
+                    transition-all duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500
+                    hover:border-gray-300 dark:hover:border-gray-600"
+                  placeholder="Enter the artist's name"
+                />
+                {errors.artist && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center gap-1 animate-in slide-in-from-top-1">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    {errors.artist.message}
+                  </p>
+                )}
+              </div>
+              
+              {/* Description */}
+              <div className="space-y-2">
+                <label htmlFor="description" className="block text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  Description
+                  <span className="text-red-500 ml-1">*</span>
+                </label>
+                <textarea
+                  id="description"
+                  {...register('description')}
+                  rows={5}
+                  className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-lg shadow-sm 
+                    bg-white dark:bg-gray-900 text-gray-900 dark:text-white resize-y
+                    focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 
+                    transition-all duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500
+                    hover:border-gray-300 dark:hover:border-gray-600"
+                  placeholder="Describe your artwork, its inspiration, and any other relevant details"
+                />
+                {errors.description && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center gap-1 animate-in slide-in-from-top-1">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    {errors.description.message}
+                  </p>
+                )}
+              </div>
             </div>
             
-            {/* Artist Name */}
-            <div>
-              <label htmlFor="artist" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Artist Name
-              </label>
-              <input
-                id="artist"
-                type="text"
-                {...register('artist')}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                placeholder="Enter the artist's name"
-              />
-              {errors.artist && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.artist.message}</p>
-              )}
-            </div>
-            
-            {/* Description */}
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Description
-              </label>
-              <textarea
-                id="description"
-                {...register('description')}
-                rows={4}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                placeholder="Describe your artwork, its inspiration, and any other relevant details"
-              />
-              {errors.description && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.description.message}</p>
-              )}
-            </div>
-            
-            {/* Price */}
-            <div>
-              <label htmlFor="price" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Price (MATIC)
-              </label>
-              <input
-                id="price"
-                type="number"
-                step="0.01"
-                min="0"
-                {...register('price')}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                placeholder="0.00"
-              />
-              {errors.price && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.price.message}</p>
-              )}
+            {/* Pricing Section */}
+            <div className="space-y-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Pricing</h3>
+              
+              <div className="space-y-2">
+                <label htmlFor="price" className="block text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  Price (PHP)
+                  <span className="text-red-500 ml-1">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <span className="text-gray-500 dark:text-gray-400 text-lg font-medium">₱</span>
+                  </div>
+                  <input
+                    id="price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    {...register('price')}
+                    className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-lg shadow-sm 
+                      bg-white dark:bg-gray-900 text-gray-900 dark:text-white
+                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 
+                      transition-all duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500
+                      hover:border-gray-300 dark:hover:border-gray-600"
+                    placeholder="0.00"
+                  />
+                </div>
+                {errors.price && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center gap-1 animate-in slide-in-from-top-1">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    {errors.price.message}
+                  </p>
+                )}
+                {rateLoading ? (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Loading WETH equivalent...
+                  </p>
+                ) : phpPerWeth != null && Number(watchedPrice) > 0 ? (
+                  <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                    ≈ {(Number(watchedPrice) / phpPerWeth).toFixed(6)} WETH
+                  </p>
+                ) : null}
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  Crypto price is subject to change at the time of listing on OpenSea.
+                </p>
+              </div>
             </div>
             
             {/* Submit Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+            <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-200 dark:border-gray-700">
               <Button 
                 type="submit"
                 disabled={isSubmitting}
-                className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700"
+                className="flex-1 flex items-center justify-center gap-2 
+                  bg-gradient-to-r from-emerald-600 via-teal-600 to-pink-600 
+                  hover:from-emerald-700 hover:via-teal-700 hover:to-pink-700
+                  text-white font-semibold py-6 rounded-lg shadow-lg hover:shadow-xl
+                  transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98]
+                  disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                {isSubmitting ? 'Uploading...' : 'Upload Artwork'}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Uploading...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-5 w-5" />
+                    <span>Upload Artwork</span>
+                  </>
+                )}
               </Button>
               
               <Button 
                 type="button"
                 onClick={handleMintNFT}
                 variant="outline"
-                className="flex-1 flex items-center justify-center gap-2"
+                className="flex-1 flex items-center justify-center gap-2 
+                  border-2 border-gray-300 dark:border-gray-600 
+                  bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300
+                  font-semibold py-6 rounded-lg shadow-md hover:shadow-lg
+                  hover:bg-gray-50 dark:hover:bg-gray-700
+                  transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98]
+                  disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 disabled={isSubmitting || !imagePreview}
               >
-                <Star className="h-4 w-4" />
-                Mint as NFT
+                <Star className="h-5 w-5" />
+                <span>Mint as NFT</span>
               </Button>
             </div>
           </form>
           
           {/* Info about artwork lifecycle */}
-          <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-sm">
-            <h3 className="font-medium mb-2 text-blue-800 dark:text-blue-400">How it works:</h3>
-            <ol className="list-decimal list-inside space-y-2 text-gray-700 dark:text-gray-300">
-              <li>Upload your artwork - it will be saved as a <span className="font-medium">draft</span></li>
-              <li>Your draft artwork will appear in the gallery with a "Draft" label</li>
-              <li>When you're ready, you can mint your draft artwork as an NFT by clicking the "Mint NFT" button on your artwork</li>
-            </ol>
+          <div className="mt-10 p-6 bg-gradient-to-br from-emerald-50 via-teal-50 to-pink-50 
+            dark:from-emerald-950/30 dark:via-teal-950/30 dark:to-pink-950/30 
+            border border-emerald-200 dark:border-emerald-800 rounded-xl shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold mb-3 text-emerald-900 dark:text-emerald-300 text-base">How it works:</h3>
+                <ol className="list-decimal list-inside space-y-2.5 text-sm text-gray-700 dark:text-gray-300">
+                  <li className="leading-relaxed">
+                    Upload your artwork - it will be saved as a <span className="font-semibold text-emerald-700 dark:text-emerald-400">draft</span>
+                  </li>
+                  <li className="leading-relaxed">
+                    Your draft artwork will appear in the gallery with a "Draft" label
+                  </li>
+                  <li className="leading-relaxed">
+                    When you're ready, you can mint your draft artwork as an NFT by clicking the "Mint NFT" button on your artwork
+                  </li>
+                </ol>
+              </div>
+            </div>
           </div>
         </div>
       </div>
