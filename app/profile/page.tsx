@@ -21,6 +21,9 @@ import { Loader2, ArrowLeft, Camera, Edit2, Save, X, Wallet as WalletIcon } from
 import { MetaMaskProvider, useSDK } from '@metamask/sdk-react'
 import Image from 'next/image'
 
+/** Toggle to show the Quick Links card on the Security tab (hidden by default). */
+const SHOW_PROFILE_QUICK_LINKS = false
+
 export default function ProfilePage() {
   // Wrap the content in the MetaMask provider
   return (
@@ -940,7 +943,8 @@ function ProfileContent() {
                 </CardContent>
               </Card>
               
-              {/* Quick Links Card */}
+              {/* Quick Links Card — gated by SHOW_PROFILE_QUICK_LINKS */}
+              {SHOW_PROFILE_QUICK_LINKS && (
               <Card className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-xl">
                 <CardHeader className="pb-4">
                   <div className="flex items-center gap-3">
@@ -1012,6 +1016,7 @@ function ProfileContent() {
                   </div>
                 </CardContent>
               </Card>
+              )}
             </TabsContent>
           </Tabs>
         </div>
