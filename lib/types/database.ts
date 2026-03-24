@@ -19,6 +19,7 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           artist: string
+          buyer_wallet: string | null
           created_at: string | null
           description: string | null
           id: string
@@ -27,6 +28,7 @@ export type Database = {
           price: number
           rejected_at: string | null
           rejected_by: string | null
+          sold_at: string | null
           status: string | null
           title: string
           token_id: string | null
@@ -37,6 +39,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           artist: string
+          buyer_wallet?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
@@ -45,6 +48,7 @@ export type Database = {
           price: number
           rejected_at?: string | null
           rejected_by?: string | null
+          sold_at?: string | null
           status?: string | null
           title: string
           token_id?: string | null
@@ -55,6 +59,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           artist?: string
+          buyer_wallet?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
@@ -63,6 +68,7 @@ export type Database = {
           price?: number
           rejected_at?: string | null
           rejected_by?: string | null
+          sold_at?: string | null
           status?: string | null
           title?: string
           token_id?: string | null

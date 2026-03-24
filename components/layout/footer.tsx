@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 
 export function Footer() {
   const currentYear = new Date().getFullYear()
@@ -9,8 +10,14 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Logo and Description */}
           <div className="md:col-span-2">
-            <Link href="/" className="text-2xl font-bold text-primary">
-              Rack N Sold
+            <Link href="/" className="flex items-center">
+              <Image
+                src="/logo.jpeg"
+                alt="Rack n Sold"
+                width={180}
+                height={180}
+                priority
+              />
             </Link>
             <p className="mt-2 text-muted-foreground">
               Your premier marketplace for buying and selling unique artwork.

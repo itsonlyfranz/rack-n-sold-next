@@ -139,6 +139,7 @@ export default function UploadArtworkPage() {
         price: data.price,
         image_url: imageUrl,
         user_id: user.id,
+        artist: user.username || user.name || user.email?.split('@')[0] || 'Artist',
       }
       
       const artwork = await createArtwork(newArtwork)

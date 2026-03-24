@@ -7,7 +7,6 @@ import Image from "next/image"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { useState, useEffect, useRef } from "react"
-import { useAuth } from "@/lib/hooks/use-auth"
 
 // NFT Card component with 3D parallax effect
 const NFTCard = ({ id, name, price, isAnimated = false }: { id: number; name: string; price: string; isAnimated?: boolean }) => {
@@ -281,133 +280,11 @@ function useScrollObserver() {
 
 export function NFTMarketplaceHero() {
   useScrollObserver();
-  const { user, isLoading, signOut } = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
-      }
-    };
-    
-    if (isMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isMenuOpen]);
-  
+
   return (
     <div className="w-full bg-gray-950">
-      {/* Header with Logo */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-gray-950/80 backdrop-blur-md border-b border-gray-800">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/" className="flex items-center">
-              <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-teal-500 animate-text-gradient">
-                Rack N Sold
-              </span>
-            </Link>
-            <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/gallery" className="text-gray-300 hover:text-white transition-colors">
-                Explore
-              </Link>
-              <Link href="/gallery" className="text-gray-300 hover:text-white transition-colors">
-                Collections
-              </Link>
-              <Link href="/artists" className="text-gray-300 hover:text-white transition-colors">
-                Artists
-              </Link>
-              <Link href="/gallery" className="text-gray-300 hover:text-white transition-colors">
-                About
-              </Link>
-            </nav>
-            <div className="flex items-center space-x-4">
-              {!isLoading && (
-                <>
-                  {user ? (
-                    <div className="relative" ref={menuRef}>
-                      <button
-                        onClick={() => setIsMenuOpen(!isMenuOpen)}
-                        className="flex items-center space-x-2 rounded-full bg-gray-800 px-3 py-1.5 text-sm text-white hover:bg-gray-700"
-                      >
-                        <span className="text-xs text-gray-300">
-                          {user.email?.split('@')[0]}
-                        </span>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className={`h-4 w-4 transition-transform ${
-                            isMenuOpen ? 'rotate-180' : ''
-                          }`}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </button>
-                      {isMenuOpen && (
-                        <div className="absolute right-0 mt-2 w-48 rounded-md bg-gray-800 py-1 shadow-lg ring-1 ring-black ring-opacity-5">
-                          <Link
-                            href="/profile"
-                            onClick={() => setIsMenuOpen(false)}
-                            className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
-                          >
-                            Profile
-                          </Link>
-                          <Link
-                            href="/gallery"
-                            onClick={() => setIsMenuOpen(false)}
-                            className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
-                          >
-                            Gallery
-                          </Link>
-                          <button
-                            onClick={async () => {
-                              setIsMenuOpen(false);
-                              await signOut();
-                              window.location.href = '/';
-                            }}
-                            className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white border-t border-gray-700"
-                          >
-                            Sign Out
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <>
-                      <Button variant="ghost" className="text-gray-300 hover:text-white hover:bg-gray-800">
-                        <Link href="/auth/login">Sign In</Link>
-                      </Button>
-                      <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white border-0 relative overflow-hidden group">
-                        <Link href="/auth/signup" className="flex items-center gap-2 relative z-10">
-                          <Sparkles className="h-4 w-4" />
-                          Get Started
-                        </Link>
-                        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl -z-10"></div>
-                      </Button>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <section className="relative overflow-hidden pt-32 pb-20 md:pt-48 md:pb-32">
+      {/* Hero Section — top padding tuned for shared sticky Header (in document flow) */}
+      <section className="relative overflow-hidden pt-8 pb-20 md:pt-12 md:pb-32">
         {/* Background elements */}
         <div className="absolute inset-0 overflow-hidden">
           <FloatingElement color="emerald" size="lg" className="-top-[30%] -left-[10%]" />
@@ -810,7 +687,15 @@ export function NFTMarketplaceHero() {
         <div className="container mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="flex flex-col items-center md:items-start">
-              <h3 className="text-xl font-bold text-white mb-2">Rack N Sold</h3>
+              <Link href="/" className="flex items-center mb-2">
+                <Image
+                  src="/logo.jpeg"
+                  alt="Rack n Sold"
+                  width={160}
+                  height={160}
+                  priority
+                />
+              </Link>
               <p className="text-gray-400 text-sm max-w-md text-center md:text-left">
                 The premier NFT marketplace for digital art, collectibles, and unique digital assets.
               </p>

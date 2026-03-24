@@ -78,6 +78,42 @@ For NFT minting functionality, you need:
 
 The application automatically fetches live PHP to WETH exchange rates from CoinGecko API. No additional configuration needed beyond what's listed above.
 
+### NFT sale detection (OpenSea) and email notifications
+
+When an NFT is listed on OpenSea (`listed_for_sale`) and later sold, a scheduled job can mark the artwork as `sold`, set `sold_at` and `buyer_wallet`, and email the seller and admin.
+
+**1. Database:** Run the migration in [supabase/migrations/20260202120000_artworks_sold_columns.sql](./supabase/migrations/20260202120000_artworks_sold_columns.sql) in the Supabase SQL Editor (adds `sold_at` and `buyer_wallet` on `artworks`).
+
+**2. Environment variables** (add to `.env.local` and your host):
+
+```bash
+# Cron route auth (Supabase pg_cron or manual calls)
+CRON_SECRET=your_long_random_secret
+
+# Resend (https://resend.com) — transactional email
+RESEND_API_KEY=re_xxxx
+RESEND_FROM_EMAIL="Rack N Sold <notifications@yourdomain.com>"
+ADMIN_EMAIL=admin@yourdomain.com
+
+# Already required elsewhere; used by the poller
+OPENSEA_API_KEY=your_opensea_api_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+# Optional override (defaults to same as mint flow)
+NEXT_PUBLIC_NFT_CONTRACT_ADDRESS=0x67a422A7E41337E346038e8c4a9013215D786105
+```
+
+**3. Supabase pg_cron:** In the Supabase Dashboard, open **Integrations → Cron** and create a job that sends an HTTP request to your deployed app every 5 minutes:
+
+- **URL:** `https://YOUR_APP_URL/api/cron/poll-opensea-sales`
+- **Method:** `POST`
+- **Header:** `Authorization: Bearer YOUR_CRON_SECRET` (same value as `CRON_SECRET` in env)
+
+Alternatively, use SQL with `pg_net` and `cron.schedule` (see [Supabase docs on scheduling Edge Functions](https://supabase.com/docs/guides/functions/schedule-functions)).
+
+**4. Local test:** `curl -X POST http://localhost:3000/api/cron/poll-opensea-sales -H "Authorization: Bearer YOUR_CRON_SECRET"`
+
+The route queries OpenSea v2 for `sale` events per listed NFT, matches `token_id`, updates Supabase, and sends emails via Resend.
+
 ## Getting Started
 
 ### Installation

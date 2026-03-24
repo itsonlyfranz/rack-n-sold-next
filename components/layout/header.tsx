@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/hooks/use-auth'
 import { useCartStore } from '@/lib/store/cart'
@@ -53,8 +54,14 @@ export function Header() {
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="text-xl font-bold text-white">
-            Rack <span className="text-emerald-500">n</span> Sold
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/logo.jpeg"
+              alt="Rack n Sold"
+              width={160}
+              height={160}
+              priority
+            />
           </Link>
           
           {/* Desktop Navigation */}

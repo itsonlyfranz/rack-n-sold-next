@@ -1,9 +1,10 @@
 import { NFTMarketplaceHero } from "@/components/landing/nft-marketplace-hero"
+import { MainLayout } from "@/components/layout/main-layout"
 
 export default function Home() {
   return (
-    <main className="min-h-screen">
+    <MainLayout>
       <NFTMarketplaceHero />
-    </main>
+    </MainLayout>
   )
-} 
+}

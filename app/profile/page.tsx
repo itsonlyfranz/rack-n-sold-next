@@ -17,9 +17,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { format } from 'date-fns'
 import ChangePasswordForm from '@/components/account/change-password-form'
-import { Loader2, ArrowLeft, Camera, Edit2, Save, X, Wallet as WalletIcon } from 'lucide-react'
+import { Loader2, ArrowLeft, Camera, Edit2, Save, X, Wallet as WalletIcon, ExternalLink } from 'lucide-react'
 import { MetaMaskProvider, useSDK } from '@metamask/sdk-react'
 import Image from 'next/image'
+import type { Artwork } from '@/lib/types'
 
 /** Toggle to show the Quick Links card on the Security tab (hidden by default). */
 const SHOW_PROFILE_QUICK_LINKS = false
@@ -107,6 +108,8 @@ function ProfileContent() {
   const [updateError, setUpdateError] = useState<string | null>(null)
   // Add state for disconnection process
   const [isDisconnecting, setIsDisconnecting] = useState(false)
+  const [sellerArtworks, setSellerArtworks] = useState<Artwork[]>([])
+  const [loadingSellerArtworks, setLoadingSellerArtworks] = useState(false)
 
   useEffect(() => {
     // Only redirect if auth check is complete AND no user found
@@ -125,6 +128,33 @@ function ProfileContent() {
         phone: user.phone || '',
         address: user.address || ''
       })
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (!user || (user.role !== 'seller' && user.role !== 'admin')) {
+      setSellerArtworks([])
+      return
+    }
+    let cancelled = false
+    setLoadingSellerArtworks(true)
+    supabase
+      .from('artworks')
+      .select('id, title, status, sold_at, opensea_listing_url, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(8)
+      .then(({ data, error }) => {
+        if (cancelled) return
+        setLoadingSellerArtworks(false)
+        if (error) {
+          console.error('[profile] Failed to load artworks:', error)
+          return
+        }
+        setSellerArtworks((data as Artwork[]) ?? [])
+      })
+    return () => {
+      cancelled = true
     }
   }, [user])
 
@@ -756,6 +786,77 @@ function ProfileContent() {
                   </div>
                 </CardContent>
               </Card>
+
+              {(user.role === 'seller' || user.role === 'admin') && (
+                <Card className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-xl">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div>
+                        <CardTitle className="text-2xl mb-1">Your artworks</CardTitle>
+                        <CardDescription className="text-base">
+                          Status updates when an NFT sells on OpenSea (synced periodically). Sold items no longer show as listed.
+                        </CardDescription>
+                      </div>
+                      <Link
+                        href="/account/artworks"
+                        className="text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:underline"
+                      >
+                        View all
+                      </Link>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingSellerArtworks ? (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading artworks…
+                      </div>
+                    ) : sellerArtworks.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No artworks yet. Upload from My Artworks.</p>
+                    ) : (
+                      <ul className="space-y-3">
+                        {sellerArtworks.map((a) => (
+                          <li
+                            key={a.id}
+                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-2 border-b border-gray-100 dark:border-gray-700 last:border-0"
+                          >
+                            <span className="font-medium text-gray-900 dark:text-gray-100 truncate pr-2">
+                              {a.title}
+                            </span>
+                            <div className="flex flex-wrap items-center gap-2">
+                              {a.status === 'sold' && (
+                                <Badge className="bg-green-600 hover:bg-green-600">Sold</Badge>
+                              )}
+                              {a.status === 'listed_for_sale' && (
+                                <Badge variant="secondary">Listed on OpenSea</Badge>
+                              )}
+                              {a.status && a.status !== 'sold' && a.status !== 'listed_for_sale' && (
+                                <Badge variant="outline" className="capitalize">{a.status.replace(/_/g, ' ')}</Badge>
+                              )}
+                              {a.status === 'sold' && a.sold_at != null && (
+                                <span className="text-xs text-muted-foreground">
+                                  Sold {format(new Date(String(a.sold_at)), 'PPp')}
+                                </span>
+                              )}
+                              {a.status === 'listed_for_sale' && a.opensea_listing_url && (
+                                <a
+                                  href={a.opensea_listing_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 hover:underline"
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                  OpenSea
+                                </a>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
             
             {false && (
@@ -773,7 +874,7 @@ function ProfileContent() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {user.wallet_address || account ? (
+                  {user?.wallet_address || account ? (
                     <div className="space-y-6">
                       {/* Status */}
                       <div className="flex justify-between items-center p-5 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 rounded-xl border border-green-200 dark:border-green-800 shadow-sm">
@@ -810,10 +911,15 @@ function ProfileContent() {
                         <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">Address</span>
                         <div className="text-right max-w-[70%]">
                           <span className="font-mono text-sm break-all text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50 px-3 py-2 rounded-lg">
-                            {user.wallet_address || account}
+                            {user?.wallet_address || account}
                           </span>
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                            {account ? `${account.slice(0, 6)}...${account.slice(-4)}` : ''}
+                            {(() => {
+                              const addr: string = typeof account === 'string' ? (account ?? '') : ''
+                              return addr.length > 0
+                                ? `${addr.slice(0, 6)}...${addr.slice(-4)}`
+                                : ''
+                            })()}
                           </p>
                         </div>
                       </div>
@@ -825,21 +931,26 @@ function ProfileContent() {
                           <div className="flex justify-between items-center py-2">
                             <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">Network</span>
                             <Badge variant="outline" className="border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 px-3 py-1">
-                              Chain ID: {parseInt(chainId, 16)}
+                              Chain ID: {parseInt(String(chainId), 16)}
                             </Badge>
                           </div>
                         </>
                       )}
                       
-                      {user.wallet_connected_at && (
+                      {Boolean(user?.wallet_connected_at) ? (
                         <>
                           <Separator className="bg-gray-200 dark:bg-gray-700" />
                           <div className="flex justify-between items-center py-2">
                             <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">Connected Since</span>
-                            <span className="text-sm text-gray-700 dark:text-gray-300">{format(new Date(user.wallet_connected_at), 'Pp')}</span>
+                            <span className="text-sm text-gray-700 dark:text-gray-300">
+                              {format(
+                                new Date(String(user?.wallet_connected_at)),
+                                'Pp'
+                              )}
+                            </span>
                           </div>
                         </>
-                      )}
+                      ) : null}
                       
                       <Separator className="bg-gray-200 dark:bg-gray-700" />
                       
@@ -862,11 +973,11 @@ function ProfileContent() {
                         </Button>
                       </div>
                       
-                      {updateError && (
+                      {updateError ? (
                         <div className="p-4 bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 dark:border-red-400 rounded-lg">
                           <p className="text-sm text-red-700 dark:text-red-300 font-medium">Error: {updateError}</p>
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   ) : (
                     <div className="space-y-6 text-center py-12">
@@ -903,7 +1014,7 @@ function ProfileContent() {
                           <div className="p-4 bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 dark:border-red-400 rounded-lg text-left max-w-md mx-auto">
                             <p className="text-sm text-red-700 dark:text-red-300 font-medium">Error: {updateError}</p>
                           </div>
-                          {updateError.includes('Encryption error') && (
+                          {updateError?.includes('Encryption error') && (
                             <Button 
                               onClick={handleResetConnection}
                               variant="outline" 

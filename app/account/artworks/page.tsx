@@ -251,9 +251,21 @@ export default function SellerArtworksPage() {
                     className="object-cover"
                   />
                   {artwork.status === 'sold' && (
-                    <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black bg-opacity-60 flex flex-col items-center justify-center gap-1 p-2">
                       <span className="px-3 py-1 bg-green-600 text-white font-medium rounded-full text-sm">
                         Sold
+                      </span>
+                      {artwork.sold_at && (
+                        <span className="text-xs text-white/90 text-center px-2">
+                          {new Date(artwork.sold_at).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {artwork.status === 'listed_for_sale' && (
+                    <div className="absolute top-2 right-2">
+                      <span className="px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded-md shadow">
+                        Listed on OpenSea
                       </span>
                     </div>
                   )}
@@ -276,27 +288,39 @@ export default function SellerArtworksPage() {
                     </span>
                   </div>
                   
-                  <div className="mt-4 flex space-x-2">
+                  <div className="mt-4 flex flex-wrap gap-2">
                     <Link
                       href={`/gallery/${artwork.id}`}
-                      className="flex-1 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-sm font-medium rounded-lg text-center hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors"
+                      className="flex-1 min-w-[4rem] px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-sm font-medium rounded-lg text-center hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors"
                     >
                       View
                     </Link>
+                    {artwork.status === 'listed_for_sale' && artwork.opensea_listing_url && (
+                      <a
+                        href={artwork.opensea_listing_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 min-w-[4rem] px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-sm font-medium rounded-lg text-center hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                      >
+                        OpenSea
+                      </a>
+                    )}
                     {artwork.status !== 'sold' && (
                       <Link
                         href={`/account/artworks/edit/${artwork.id}`}
-                        className="flex-1 px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-sm font-medium rounded-lg text-center hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
+                        className="flex-1 min-w-[4rem] px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-sm font-medium rounded-lg text-center hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
                       >
                         Edit
                       </Link>
                     )}
-                    <button
-                      onClick={() => handleDeleteArtwork(artwork.id)}
-                      className="flex-1 px-3 py-1.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm font-medium rounded-lg text-center hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
-                    >
-                      Delete
-                    </button>
+                    {artwork.status !== 'sold' && (
+                      <button
+                        onClick={() => handleDeleteArtwork(artwork.id)}
+                        className="flex-1 min-w-[4rem] px-3 py-1.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm font-medium rounded-lg text-center hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
