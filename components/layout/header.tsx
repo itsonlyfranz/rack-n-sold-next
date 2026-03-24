@@ -54,12 +54,13 @@ export function Header() {
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center">
+          <Link href="/" className="relative flex h-9 w-[min(220px,calc(100vw-10rem))] shrink-0 items-center sm:h-10 sm:w-[min(260px,calc(100vw-12rem))]">
             <Image
-              src="/logo.jpeg"
+              src="/logo.JPEG"
               alt="Rack n Sold"
-              width={160}
-              height={160}
+              fill
+              className="object-contain object-left"
+              sizes="(max-width: 640px) 200px, 260px"
               priority
             />
           </Link>

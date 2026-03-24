@@ -687,12 +687,13 @@ export function NFTMarketplaceHero() {
         <div className="container mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="flex flex-col items-center md:items-start">
-              <Link href="/" className="flex items-center mb-2">
+              <Link href="/" className="relative mb-2 block h-12 w-[min(280px,100%)]">
                 <Image
-                  src="/logo.jpeg"
+                  src="/logo.JPEG"
                   alt="Rack n Sold"
-                  width={160}
-                  height={160}
+                  fill
+                  className="object-contain object-left"
+                  sizes="280px"
                   priority
                 />
               </Link>

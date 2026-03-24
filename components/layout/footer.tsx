@@ -10,12 +10,13 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Logo and Description */}
           <div className="md:col-span-2">
-            <Link href="/" className="flex items-center">
+            <Link href="/" className="relative block h-12 w-[min(280px,100%)]">
               <Image
-                src="/logo.jpeg"
+                src="/logo.JPEG"
                 alt="Rack n Sold"
-                width={180}
-                height={180}
+                fill
+                className="object-contain object-left"
+                sizes="280px"
                 priority
               />
             </Link>
