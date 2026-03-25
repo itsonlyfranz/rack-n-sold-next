@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,13 +10,16 @@ import Image from 'next/image';
 import { supabase } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
-import { Loader2, Upload, Image as ImageIcon, Star } from 'lucide-react';
+import { Loader2, Upload, Image as ImageIcon, Star, Info } from 'lucide-react';
 
 const artworkSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters'),
   description: z.string().min(10, 'Description must be at least 10 characters'),
   price: z.coerce.number().positive('Price must be a positive number'),
   artist: z.string().min(3, 'Artist name must be at least 3 characters'),
+  acceptTerms: z.boolean().refine((v) => v === true, {
+    message: 'You must accept the Terms of Service and Privacy Policy to upload artwork.',
+  }),
 });
 
 type ArtworkFormValues = {
@@ -23,6 +27,7 @@ type ArtworkFormValues = {
   description: string;
   price: number;
   artist: string;
+  acceptTerms: boolean;
 };
 
 // Simplified artwork upload function that directly uses supabase
@@ -134,6 +139,7 @@ export default function ArtistsClient() {
       description: '',
       price: 0,
       artist: '',
+      acceptTerms: false,
     },
   });
 
@@ -558,7 +564,17 @@ export default function ArtistsClient() {
             
             {/* Pricing Section */}
             <div className="space-y-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Pricing</h3>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Pricing</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 flex items-start gap-2 leading-relaxed">
+                  <Info className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" aria-hidden />
+                  <span>
+                    <span className="font-semibold text-gray-800 dark:text-gray-200">Rack N Sold</span> collects a{' '}
+                    <span className="font-semibold text-emerald-700 dark:text-emerald-300">2.5%</span> platform fee when
+                    your NFT art sells successfully.
+                  </span>
+                </p>
+              </div>
               
               <div className="space-y-2">
                 <label htmlFor="price" className="block text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -608,6 +624,43 @@ export default function ArtistsClient() {
                   Crypto price is subject to change at the time of listing on OpenSea.
                 </p>
               </div>
+            </div>
+
+            {/* Legal acceptance */}
+            <div className="space-y-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  {...register('acceptTerms')}
+                  className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 dark:border-gray-600 text-emerald-600 focus:ring-emerald-500 focus:ring-offset-0 dark:bg-gray-900 dark:focus:ring-offset-gray-800"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                  I agree to the{' '}
+                  <Link
+                    href="/terms"
+                    className="text-emerald-600 dark:text-emerald-400 font-medium underline-offset-2 hover:underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Terms of Service
+                  </Link>{' '}
+                  and{' '}
+                  <Link
+                    href="/privacy"
+                    className="text-emerald-600 dark:text-emerald-400 font-medium underline-offset-2 hover:underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Privacy Policy
+                  </Link>
+                  .
+                </span>
+              </label>
+              {errors.acceptTerms && (
+                <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1 pl-7">
+                  {errors.acceptTerms.message}
+                </p>
+              )}
             </div>
             
             {/* Submit Buttons */}
