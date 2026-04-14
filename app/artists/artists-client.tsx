@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { z } from 'zod';
@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { Loader2, Upload, Image as ImageIcon, Star, Info } from 'lucide-react';
+import { MIN_WETH_FOR_OPENSEA_LISTING } from '@/lib/constants/opensea-listing';
 
 /** Platform fee on successful sales; keep in sync with product/legal disclosures. */
 const PLATFORM_FEE_RATE = 0.025;
@@ -18,16 +19,6 @@ const PLATFORM_FEE_RATE = 0.025;
 const phpCurrencyFormatter = new Intl.NumberFormat('en-PH', {
   style: 'currency',
   currency: 'PHP',
-});
-
-const artworkSchema = z.object({
-  title: z.string().min(3, 'Title must be at least 3 characters'),
-  description: z.string().min(10, 'Description must be at least 10 characters'),
-  price: z.coerce.number().positive('Price must be a positive number'),
-  artist: z.string().min(3, 'Artist name must be at least 3 characters'),
-  acceptTerms: z.boolean().refine((v) => v === true, {
-    message: 'You must accept the Terms of Service and Privacy Policy to upload artwork.',
-  }),
 });
 
 type ArtworkFormValues = {
@@ -134,10 +125,41 @@ export default function ArtistsClient() {
   const [rateLoading, setRateLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const minPricePhp = useMemo(() => {
+    if (phpPerWeth == null || !Number.isFinite(phpPerWeth) || phpPerWeth <= 0) return null;
+    return MIN_WETH_FOR_OPENSEA_LISTING * phpPerWeth;
+  }, [phpPerWeth]);
+
+  const artworkSchema = useMemo(
+    () =>
+      z.object({
+        title: z.string().min(3, 'Title must be at least 3 characters'),
+        description: z.string().min(10, 'Description must be at least 10 characters'),
+        price: z.coerce
+          .number({ invalid_type_error: 'Enter a valid price' })
+          .positive('Price must be a positive number')
+          .superRefine((val, ctx) => {
+            if (minPricePhp == null) return;
+            if (val < minPricePhp) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `Minimum price is ${phpCurrencyFormatter.format(minPricePhp)} (≈ ${MIN_WETH_FOR_OPENSEA_LISTING} WETH; required for OpenSea listings).`,
+              });
+            }
+          }),
+        artist: z.string().min(3, 'Artist name must be at least 3 characters'),
+        acceptTerms: z.boolean().refine((v) => v === true, {
+          message: 'You must accept the Terms of Service and Privacy Policy to upload artwork.',
+        }),
+      }),
+    [minPricePhp]
+  );
+
   const {
     register,
     handleSubmit,
     watch,
+    trigger,
     formState: { errors },
     reset,
   } = useForm<ArtworkFormValues>({
@@ -150,6 +172,12 @@ export default function ArtistsClient() {
       acceptTerms: false,
     },
   });
+
+  useEffect(() => {
+    if (minPricePhp != null) {
+      void trigger('price');
+    }
+  }, [minPricePhp, trigger]);
 
   const watchedPrice = watch('price');
   const priceNum = Number(watchedPrice);
@@ -593,6 +621,15 @@ export default function ArtistsClient() {
                   Price (PHP)
                   <span className="text-red-500 ml-1">*</span>
                 </label>
+                {minPricePhp != null && (
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Minimum{' '}
+                    <span className="font-medium text-gray-800 dark:text-gray-200">
+                      {phpCurrencyFormatter.format(minPricePhp)}
+                    </span>{' '}
+                    (≈ {MIN_WETH_FOR_OPENSEA_LISTING} WETH — matches OpenSea&apos;s minimum order size).
+                  </p>
+                )}
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                     <span className="text-gray-500 dark:text-gray-400 text-lg font-medium">₱</span>
@@ -601,7 +638,7 @@ export default function ArtistsClient() {
                     id="price"
                     type="number"
                     step="0.01"
-                    min="0"
+                    min={minPricePhp != null ? minPricePhp : undefined}
                     {...register('price')}
                     className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-lg shadow-sm 
                       bg-white dark:bg-gray-900 text-gray-900 dark:text-white

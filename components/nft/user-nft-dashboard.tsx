@@ -110,7 +110,7 @@ export function UserNFTDashboard() {
                   {nft.description || 'No description'}
                 </p>
                 <div className="flex justify-between items-center">
-                  <span className="font-bold">{formatPrice(nft.price)}</span>
+                  <span className="font-bold">{formatPrice(nft.price, { currency: 'PHP' })}</span>
                   <span className="text-xs px-2 py-1 rounded-full bg-secondary">
                     {nft.status === 'pending_mint' ? 'Ready to Mint' : 
                      nft.status === 'minting' ? 'Minting' : 

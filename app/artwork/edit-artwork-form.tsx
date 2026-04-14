@@ -657,12 +657,12 @@ export function EditArtworkForm({ id }: { id: string }) {
                 
                 <div className="space-y-2">
                   <label htmlFor="price" className="block text-sm font-semibold text-gray-900 dark:text-gray-100">
-                    Price (USD)
+                    Price (PHP)
                     <span className="text-red-500 ml-1">*</span>
                   </label>
                   <div className="relative">
                     <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-500 dark:text-gray-400 text-lg font-medium">
-                      $
+                      ₱
                     </span>
                     <Input
                       id="price"

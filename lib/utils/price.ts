@@ -9,8 +9,8 @@
  */
 export function formatPrice(
   price: number | null | undefined,
-  currency: string = 'USD',
-  locale: string = 'en-US'
+  currency: string = 'PHP',
+  locale: string = 'en-PH'
 ): string {
   if (price === null || price === undefined || isNaN(price)) {
     return '-'; // Return dash for invalid or zero prices

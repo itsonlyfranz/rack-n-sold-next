@@ -6,6 +6,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { User, Artwork } from '@/lib/types'
 import Image from 'next/image'
 import Link from 'next/link'
+import { formatPrice } from '@/lib/utils'
 
 export default function SellerArtworksPage() {
   const router = useRouter()
@@ -281,7 +282,7 @@ export default function SellerArtworksPage() {
                   
                   <div className="flex justify-between items-center">
                     <span className="text-indigo-600 dark:text-indigo-400 font-medium">
-                      Ξ {artwork.price.toFixed(3)}
+                      {formatPrice(artwork.price, { currency: 'PHP' })}
                     </span>
                     <span className="text-xs text-gray-500 dark:text-gray-400">
                       {artwork.created_at ? new Date(artwork.created_at).toLocaleDateString() : '-'}

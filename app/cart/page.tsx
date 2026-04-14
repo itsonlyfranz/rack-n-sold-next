@@ -104,7 +104,7 @@ export default function CartPage() {
                       <p className="text-sm text-muted-foreground">{item.artwork.description?.substring(0, 50)}...</p>
                     </div>
                     <div className="flex flex-col items-end space-y-1">
-                      <span className="font-semibold">{formatPrice(item.artwork.price)}</span>
+                      <span className="font-semibold">{formatPrice(item.artwork.price, 'PHP')}</span>
                       <Button 
                         variant="ghost" 
                         size="icon" 
@@ -134,11 +134,11 @@ export default function CartPage() {
                 <h2 className="text-xl font-semibold">Order Summary</h2>
                 <div className="flex justify-between">
                   <span>{totalItems} {totalItems === 1 ? 'Item' : 'Items'}</span>
-                  <span>{formatPrice(totalPrice)}</span>
+                  <span>{formatPrice(totalPrice, 'PHP')}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-lg border-t pt-4">
                   <span>Total</span>
-                  <span>{formatPrice(totalPrice)}</span>
+                  <span>{formatPrice(totalPrice, 'PHP')}</span>
                 </div>
                 <Button 
                   className="w-full mt-4"

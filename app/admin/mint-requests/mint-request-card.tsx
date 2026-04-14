@@ -157,7 +157,7 @@ export function MintRequestCard({ request, onRequestProcessed }: MintRequestCard
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-gray-500">Price:</span>
-              <span className="text-white font-medium ml-2">{formatPrice(artwork.price)}</span>
+              <span className="text-white font-medium ml-2">{formatPrice(artwork.price, { currency: 'PHP' })}</span>
             </div>
             <div>
               <span className="text-gray-500">Requested:</span>

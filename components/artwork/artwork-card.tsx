@@ -353,7 +353,7 @@ export function ArtworkCard({ artwork, showAuthor = true }: ArtworkCardProps) {
         )}
         
         <div className="flex items-center justify-between mt-3">
-          <span className="text-lg font-bold text-white">{formatPrice(price)}</span>
+          <span className="text-lg font-bold text-white">{formatPrice(price, { currency: 'PHP' })}</span>
           
           {!sold && !isOwner && currentUser && (
             <button

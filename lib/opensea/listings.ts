@@ -30,7 +30,8 @@ if (!ADMIN_PRIVATE_KEY) {
  */
 export interface ListingParams {
   tokenId: string;
-  priceInMatic: number;
+  /** Human-readable WETH amount (payment token is WETH on Polygon — not MATIC, not wei). */
+  priceInWeth: number;
   durationInDays?: number; // Default: 30 days
 }
 
@@ -51,10 +52,13 @@ export interface ListingResult {
  * @returns ListingResult with success status and OpenSea URL
  */
 export async function createOpenSeaListing(params: ListingParams): Promise<ListingResult> {
-  const { tokenId, priceInMatic, durationInDays = 30 } = params;
+  const { tokenId, priceInWeth, durationInDays = 30 } = params;
+
+  // OpenSea SDK / ethers FixedNumber require decimal strings — never pass JS numbers (scientific notation breaks).
+  const startAmount = priceInWeth.toFixed(18);
 
   try {
-    console.log('[OpenSea Listing] Creating listing:', { tokenId, priceInMatic, durationInDays });
+    console.log('[OpenSea Listing] Creating listing:', { tokenId, priceInWeth, startAmount, durationInDays });
 
     // ethers v6 syntax: JsonRpcProvider is top-level, Wallet takes provider as second arg
     const provider = new ethers.JsonRpcProvider(POLYGON_RPC_URL);
@@ -81,7 +85,7 @@ export async function createOpenSeaListing(params: ListingParams): Promise<Listi
         tokenAddress: NFT_CONTRACT_ADDRESS,
       },
       accountAddress: walletWithProvider.address,
-      startAmount: priceInMatic,
+      startAmount,
       expirationTime: expirationTime,
       paymentTokenAddress: WETH_POLYGON_ADDRESS,
     });

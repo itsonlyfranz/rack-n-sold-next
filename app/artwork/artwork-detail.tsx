@@ -127,9 +127,11 @@ export function ArtworkDetail({ id }: { id: string }) {
             .limit(1)
             .maybeSingle();
           
-          // Only set sell request if we found one (no error or error is just "no rows")
-          if (sellData && (!sellError || sellError.code === 'PGRST116')) {
+          // maybeSingle: row → sellData set, sellError null; no row → PGRST116, sellData null
+          if (sellData) {
             setSellRequest(sellData as SellRequest);
+          } else if (sellError?.code && sellError.code !== 'PGRST116') {
+            console.error('Error fetching sell request:', sellError);
           }
         }
         
@@ -314,7 +316,7 @@ export function ArtworkDetail({ id }: { id: string }) {
           <div className="space-y-4 mb-8">
             <div className="flex items-center justify-between">
               <span className="text-2xl font-bold">
-                {formatPrice(artwork.price)}
+                {formatPrice(artwork.price, { currency: 'PHP' })}
               </span>
               
               {!isOwner && user && artwork.status !== 'sold' && artwork.status !== 'draft' && (
@@ -442,6 +444,7 @@ export function ArtworkDetail({ id }: { id: string }) {
                     <dd className="font-medium text-xs">{owner.email}</dd>
                   </div>
                   
+                  {/* Owner Role — hidden from artwork detail
                   <div className="flex justify-between py-2 border-b border-muted">
                     <dt className="text-muted-foreground">Owner Role</dt>
                     <dd className="font-medium capitalize">
@@ -454,7 +457,9 @@ export function ArtworkDetail({ id }: { id: string }) {
                       </span>
                     </dd>
                   </div>
+                  */}
                   
+                  {/* Owner Wallet — hidden from artwork detail
                   {owner.wallet_address && (
                     <div className="flex justify-between py-2 border-b border-muted">
                       <dt className="text-muted-foreground">Owner Wallet</dt>
@@ -463,6 +468,7 @@ export function ArtworkDetail({ id }: { id: string }) {
                       </dd>
                     </div>
                   )}
+                  */}
                 </>
               )}
             </dl>

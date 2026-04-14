@@ -6,6 +6,7 @@ import { createBrowserClient } from '@supabase/ssr'
 import { User, ArtworkWithUser } from '@/lib/types'
 import Image from 'next/image'
 import Link from 'next/link'
+import { formatPrice } from '@/lib/utils'
 
 export default function PurchasesPage() {
   const router = useRouter()
@@ -147,7 +148,7 @@ export default function PurchasesPage() {
                   
                   <div className="flex justify-between items-center">
                     <span className="text-indigo-600 dark:text-indigo-400 font-medium">
-                      Ξ {artwork.price.toFixed(3)}
+                      {formatPrice(artwork.price, { currency: 'PHP' })}
                     </span>
                     <Link
                       href={`/gallery/${artwork.id}`}
@@ -174,7 +175,10 @@ export default function PurchasesPage() {
             </div>
             <div className="bg-white dark:bg-gray-800 p-4 rounded-lg">
               <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mb-1">
-                Ξ {purchases.reduce((total, artwork) => total + artwork.price, 0).toFixed(3)}
+                {formatPrice(
+                  purchases.reduce((total, artwork) => total + artwork.price, 0),
+                  { currency: 'PHP' }
+                )}
               </div>
               <div className="text-sm text-gray-500 dark:text-gray-400">Total Value</div>
             </div>

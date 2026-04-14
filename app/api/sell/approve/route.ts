@@ -3,13 +3,14 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import type { Database } from '@/lib/types/database';
 import { createOpenSeaListing } from '@/lib/opensea/listings';
+import { MIN_WETH_FOR_OPENSEA_LISTING } from '@/lib/constants/opensea-listing';
 import { recoverTokenIdFromTransaction } from '@/lib/blockchain/recover-token-id';
 
 export async function POST(request: NextRequest) {
   console.log('[Sell Approve API] POST request received');
 
   try {
-    const { sellRequestId, action, rejectionReason } = await request.json();
+    const { sellRequestId, action, rejectionReason, listingPricePhp } = await request.json();
 
     if (!sellRequestId || !action) {
       return NextResponse.json({ error: 'Sell request ID and action are required' }, { status: 400 });
@@ -97,6 +98,29 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Artwork not found' }, { status: 404 });
       }
 
+      let pricePhp = artwork.price;
+      if (listingPricePhp !== undefined && listingPricePhp !== null) {
+        if (typeof listingPricePhp !== 'number' || !Number.isFinite(listingPricePhp)) {
+          return NextResponse.json(
+            { error: 'listingPricePhp must be a finite number (PHP).' },
+            { status: 400 }
+          );
+        }
+        pricePhp = listingPricePhp;
+      }
+
+      if (pricePhp !== artwork.price) {
+        const { error: priceUpdateError } = await supabase
+          .from('artworks')
+          .update({ price: pricePhp, updated_at: new Date().toISOString() })
+          .eq('id', artwork.id);
+
+        if (priceUpdateError) {
+          console.error('[Sell Approve API] Failed to update artwork price:', priceUpdateError);
+          return NextResponse.json({ error: 'Failed to save listing price on artwork' }, { status: 500 });
+        }
+      }
+
       // If token_id missing, try to recover from blockchain (for NFTs minted before token_id extraction)
       let tokenId = artwork.token_id;
       if (!tokenId) {
@@ -156,12 +180,43 @@ export async function POST(request: NextRequest) {
       if (typeof phpPerWeth !== 'number' || phpPerWeth <= 0) {
         return NextResponse.json({ error: 'Invalid exchange rate' }, { status: 500 });
       }
-      const priceInWeth = artwork.price / phpPerWeth;
+
+      if (typeof pricePhp !== 'number' || !Number.isFinite(pricePhp) || pricePhp <= 0) {
+        return NextResponse.json(
+          {
+            error: 'Invalid artwork price. Price must be a positive number (PHP).',
+            details: 'Update the listing price before approving this sell request.',
+          },
+          { status: 400 }
+        );
+      }
+
+      const priceInWeth = pricePhp / phpPerWeth;
+
+      if (!Number.isFinite(priceInWeth) || priceInWeth <= 0) {
+        return NextResponse.json(
+          {
+            error: 'Could not compute a valid WETH listing price from PHP and the current exchange rate.',
+            details: 'Check artwork price and try again.',
+          },
+          { status: 400 }
+        );
+      }
+
+      if (priceInWeth < MIN_WETH_FOR_OPENSEA_LISTING) {
+        return NextResponse.json(
+          {
+            error: 'Computed WETH amount is too small to list on OpenSea.',
+            details: `Minimum list price is ${MIN_WETH_FOR_OPENSEA_LISTING} WETH (same order of magnitude as OpenSea’s minimum offer). Increase the artwork price in PHP.`,
+          },
+          { status: 400 }
+        );
+      }
 
       // Create OpenSea listing automatically
       const listingResult = await createOpenSeaListing({
         tokenId,
-        priceInMatic: priceInWeth,
+        priceInWeth,
         durationInDays: 30, // 30-day listing as per requirements
       });
 
