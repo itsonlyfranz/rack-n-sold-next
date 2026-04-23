@@ -12,12 +12,13 @@
 ---
 
 ## 2) Bug fix task
-**Task:** Fix guest gallery filtering by replacing `published` with a valid status (likely `listed_for_sale`) in `app/gallery/client-gallery.tsx`.
+**Task:** Resolve public-gallery status drift by aligning app query filters and RLS policy together (do not change only one side).
 
-- Guests are filtered with `query.in('status', ['minted', 'published'])`.
-- The rest of the codebase consistently uses statuses like `draft`, `pending_mint`, `minted`, `listed_for_sale`, and `sold`.
+- Guests are filtered with `query.in('status', ['minted', 'published'])` in `app/gallery/client-gallery.tsx`.
+- `setup-supabase.sql` currently defines guest visibility as `status = 'published' OR user_id = auth.uid()`.
+- Other code paths heavily use statuses like `draft`, `pending_mint`, `minted`, `listed_for_sale`, and `sold`.
 
-**Why this is a bug:** `published` is not part of the active status vocabulary used elsewhere, so guests can miss artworks that should be visible (e.g., listed-for-sale pieces).
+**Why this is a bug-risk:** the app and policy may be coupled to an older `published` model in some environments, while newer flows use `listed_for_sale`. A unilateral code-only change can break guest visibility under existing RLS, and a policy-only change can break existing clients.
 
 ---
 
