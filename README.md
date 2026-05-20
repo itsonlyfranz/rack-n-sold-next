@@ -56,11 +56,28 @@ NEXT_PUBLIC_POLYGON_RPC_URL=https://polygon-mainnet.g.alchemy.com/v2/YOUR_ALCHEM
 POLYGON_RPC_URL=https://polygon-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_KEY
 NEXT_PUBLIC_POLYGON_CHAIN_ID=137
 NEXT_PUBLIC_NFT_CONTRACT_ADDRESS=your_nft_contract_address
-PRIVATE_KEY=your_admin_wallet_private_key
+
+# Thirdweb / Admin Wallet
+NEXT_PUBLIC_THIRDWEB_CLIENT_ID=your_thirdweb_client_id
+THIRDWEB_SECRET_KEY=your_thirdweb_secret_key
+THIRDWEB_ADMIN_PRIVATE_KEY=your_admin_wallet_private_key
+AUTH_PRIVATE_KEY=your_wallet_auth_private_key
+
+# Alchemy NFT API
+ALCHEMY_API_KEY=your_alchemy_api_key
+ALCHEMY_NFT_API_URL=https://polygon-mainnet.g.alchemy.com/nft/v3/YOUR_ALCHEMY_KEY
 
 # OpenSea Configuration
 OPENSEA_API_KEY=your_opensea_api_key
 NEXT_PUBLIC_OPENSEA_API_URL=https://api.opensea.io/api
+
+# Cache / Background Jobs
+CRON_SECRET=your_long_random_secret
+
+# Email Notifications
+RESEND_API_KEY=your_resend_api_key
+RESEND_FROM_EMAIL="Rack N Sold <notifications@yourdomain.com>"
+ADMIN_EMAIL=admin@yourdomain.com
 
 # Feature Flags
 NEXT_PUBLIC_FEATURE_SELLER_DASHBOARD=true
@@ -71,7 +88,8 @@ NEXT_PUBLIC_FEATURE_ADMIN_DASHBOARD=true
 
 For NFT minting functionality, you need:
 - **NFT Contract Address**: ERC-721 smart contract deployed on Polygon
-- **Admin Wallet Private Key**: Private key of the wallet that will mint NFTs
+- **Thirdweb Client and Secret Keys**: Used by server-side mint/signature routes
+- **Admin Wallet Private Key**: `THIRDWEB_ADMIN_PRIVATE_KEY` for the wallet that mints and creates listings
 - **Polygon RPC URLs**: Both public and private RPC endpoints for blockchain interactions
 
 ### Dynamic Pricing (PHP to WETH)
@@ -82,37 +100,33 @@ The application automatically fetches live PHP to WETH exchange rates from CoinG
 
 When an NFT is listed on OpenSea (`listed_for_sale`) and later sold, a scheduled job can mark the artwork as `sold`, set `sold_at` and `buyer_wallet`, and email the seller and admin.
 
-**1. Database:** Run the migration in [supabase/migrations/20260202120000_artworks_sold_columns.sql](./supabase/migrations/20260202120000_artworks_sold_columns.sql) in the Supabase SQL Editor (adds `sold_at` and `buyer_wallet` on `artworks`).
+**1. Database:** Run the sale tracking and outbox migrations in `supabase/migrations/`:
 
-**2. Environment variables** (add to `.env.local` and your host):
+- [supabase/migrations/20260202120000_artworks_sold_columns.sql](./supabase/migrations/20260202120000_artworks_sold_columns.sql) adds `sold_at` and `buyer_wallet` on `artworks`.
+- [supabase/migrations/20260428043000_sale_notification_outbox.sql](./supabase/migrations/20260428043000_sale_notification_outbox.sql) adds the retryable email outbox and sale-recording RPCs.
+- [supabase/migrations/20260428044500_schedule_sale_notification_cron.sql](./supabase/migrations/20260428044500_schedule_sale_notification_cron.sql) schedules the Supabase Edge Function every minute.
+
+**2. Supabase Vault secrets:** The Edge Function reads these from Edge Function env vars first, then from Supabase Vault:
 
 ```bash
-# Cron route auth (Supabase pg_cron or manual calls)
-CRON_SECRET=your_long_random_secret
-
-# Resend (https://resend.com) — transactional email
-RESEND_API_KEY=re_xxxx
-RESEND_FROM_EMAIL="Rack N Sold <notifications@yourdomain.com>"
-ADMIN_EMAIL=admin@yourdomain.com
-
-# Already required elsewhere; used by the poller
-OPENSEA_API_KEY=your_opensea_api_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-# Optional override (defaults to same as mint flow)
-NEXT_PUBLIC_NFT_CONTRACT_ADDRESS=0x67a422A7E41337E346038e8c4a9013215D786105
+resend_api_key
+resend_from_email
+admin_email
+opensea_api_key
+nft_contract_address
 ```
 
-**3. Supabase pg_cron:** In the Supabase Dashboard, open **Integrations → Cron** and create a job that sends an HTTP request to your deployed app every 5 minutes:
+`poll_opensea_sales_cron_secret` is generated automatically by the scheduling migration and used by `pg_cron` to authenticate the Edge Function call.
 
-- **URL:** `https://YOUR_APP_URL/api/cron/poll-opensea-sales`
-- **Method:** `POST`
-- **Header:** `Authorization: Bearer YOUR_CRON_SECRET` (same value as `CRON_SECRET` in env)
+**3. Edge Function:** Deploy `supabase/functions/poll-opensea-sales/index.ts` with JWT verification disabled. The function performs custom auth with the Vault-backed `x-cron-secret` header.
 
-Alternatively, use SQL with `pg_net` and `cron.schedule` (see [Supabase docs on scheduling Edge Functions](https://supabase.com/docs/guides/functions/schedule-functions)).
+**4. Supabase pg_cron:** The scheduling migration creates:
 
-**4. Local test:** `curl -X POST http://localhost:3000/api/cron/poll-opensea-sales -H "Authorization: Bearer YOUR_CRON_SECRET"`
+- job name: `poll-opensea-sales-every-minute`
+- schedule: `* * * * *`
+- target: `https://ukamngdajouofvynqjcn.supabase.co/functions/v1/poll-opensea-sales`
 
-The route queries OpenSea v2 for `sale` events per listed NFT, matches `token_id`, updates Supabase, and sends emails via Resend.
+The Edge Function queries OpenSea v2 for `sale` events per listed NFT, marks artworks as sold through an atomic RPC, queues one notification per artwork, and retries pending Resend emails until both seller and admin messages are sent.
 
 ## Getting Started
 
@@ -190,7 +204,7 @@ Sellers can upload artwork and list it for sale:
 
 ### 3. Admin Dashboard
 
-Admins access [http://localhost:3000/admin](http://localhost:3000/admin) to:
+Admins access [http://localhost:3000/admin/mint-requests](http://localhost:3000/admin/mint-requests) to:
 - Review and approve mint requests
 - Review and approve sell requests
 - View transaction hashes and token IDs
@@ -230,53 +244,246 @@ No API key required for CoinGecko's free tier.
 
 ## Architecture
 
-### Database Schema
+Rack N Sold is a Next.js App Router application backed by Supabase and Polygon marketplace integrations. The browser-facing layer serves marketing, gallery, auth, account, admin, cart, and NFT detail routes from `app/`, with shared UI and wallet controls in `components/`. Middleware refreshes Supabase sessions, redirects legacy `/marketplace` and `/account` paths, and restricts `/admin` routes to users with the `admin` role.
 
-Key tables managed by Supabase:
-- **users** - User accounts, profiles, roles (seller, admin, buyer)
-- **artworks** - Artwork metadata, status (draft, minted, listed_for_sale), PHP price, token_id
-- **mint_requests** - Track NFT minting workflows, transaction hashes, token IDs
-- **sell_requests** - Track NFT listing workflows, OpenSea URLs, WETH prices
-- **profiles** - Extended user information
+For a clickable source-derived architecture map, open [docs/architecture-map.html](./docs/architecture-map.html). The companion [docs/architecture-agent-context.json](./docs/architecture-agent-context.json) stores the same repo evidence in machine-readable form for maintainers and AI coding agents.
 
-### Smart Contracts
+### System Architecture
 
-- **ERC-721**: NFT contract on Polygon for minting digital assets
-- **WETH**: Payment token used for OpenSea listings on Polygon
+```mermaid
+flowchart LR
+  Users["Buyers, sellers, admins"] --> Browser["Browser UI"]
+  Browser --> AppRouter["Next.js App Router"]
+  Browser --> Wallet["MetaMask and Thirdweb"]
+  AppRouter --> Middleware["Supabase SSR middleware"]
+  AppRouter --> Pages["RSC pages and client islands"]
+  AppRouter --> Api["API route handlers"]
+  Middleware --> SupabaseAuth["Supabase Auth"]
+  Pages --> SupabaseData["Supabase clients"]
+  Api --> SupabaseData
+  SupabaseData --> Postgres["Supabase Postgres"]
+  SupabaseData --> Storage["Supabase Storage"]
+  Api --> OpenSea["OpenSea API and SDK"]
+  Api --> Alchemy["Alchemy NFT and Polygon RPC"]
+  Api --> CoinGecko["CoinGecko exchange rates"]
+  Api --> KV["Vercel KV collection cache"]
+  Api --> ThirdwebServer["Thirdweb server minting"]
+  Postgres --> PgCron["pg_cron and pg_net"]
+  PgCron --> EdgeFn["Supabase Edge Function"]
+  EdgeFn --> OpenSea
+  EdgeFn --> Resend["Resend email"]
+  EdgeFn --> Postgres
+```
 
-### API Routes
+### Main Runtime Flows
 
-- `GET /api/exchange-rate` - PHP to WETH conversion (CoinGecko)
-- `POST /api/mint/approve` - Approve and mint NFT
-- `POST /api/sell/approve` - Approve and list on OpenSea
-- `GET/POST /api/opensea/*` - OpenSea integration endpoints
+- **Authentication and roles:** Supabase Auth owns sessions; the public `users` table mirrors app profile data, wallet fields, and roles (`buyer`, `seller`, `admin`).
+- **Artwork upload:** Sellers upload images to Supabase Storage and create `artworks` rows with PHP pricing and `draft` status.
+- **Mint approval:** A seller creates a `mint_requests` row; admin approval mints an ERC-721 NFT on Polygon through Thirdweb, stores the `transaction_hash` and `token_id`, and moves the artwork to `minted`.
+- **OpenSea listing:** A seller creates a `sell_requests` row for a minted artwork; admin approval converts PHP to WETH through `/api/exchange-rate`, creates an OpenSea listing, stores the listing URL, and moves the artwork to `listed_for_sale`.
+- **Sale detection:** Supabase `pg_cron` calls the `poll-opensea-sales` Edge Function every minute. The function checks OpenSea sale events, marks matching listed artworks as `sold`, records `sold_at` and `buyer_wallet`, and queues retryable seller/admin emails in `nft_sale_notifications`.
+- **Collection and wallet browsing:** OpenSea and Alchemy routes proxy collection, asset, event, metadata, and wallet NFT data. Vercel KV caches collection work and queue state.
 
-### Key Services
+### API Surface
 
-- **opensea-js**: OpenSea v2 API integration for automated listings
-- **ethers.js v6**: Blockchain interactions for minting and signing
-- **Supabase SDK**: Database and authentication
-- **CoinGecko API**: Real-time exchange rates
+- `POST /api/mint/request` - create a mint review request for a draft artwork.
+- `POST /api/mint/generate-signature` - generate server-side mint authorization data.
+- `POST /api/mint/approve` - approve or reject mint requests; approval mints on Polygon.
+- `POST /api/sell/request` - create an OpenSea listing review request for a minted artwork.
+- `POST /api/sell/approve` - approve or reject sell requests; approval creates an OpenSea listing.
+- `POST /api/artwork/update-status` - update persisted artwork workflow status.
+- `GET /api/exchange-rate` - return PHP to WETH conversion data from CoinGecko.
+- `GET/POST /api/opensea/*` - proxy OpenSea account, asset, assets, collections, events, and stream operations.
+- `GET /api/alchemy/*` - fetch NFT metadata, wallet NFTs, and asset data from Alchemy.
+- `GET/POST /api/collections/*` - manage collection cache, setup, checks, and processing queue.
+- `POST /api/thirdweb/verify-wallet` - verify wallet ownership/signature data for wallet auth flows.
+- `GET/POST /api/cron/poll-opensea-sales` - deprecated compatibility route; sale polling now runs through the Supabase Edge Function.
+
+### Data Model and ERD
+
+```mermaid
+erDiagram
+  AUTH_USERS ||--|| USERS : mirrors
+  USERS ||--o{ ARTWORKS : owns
+  USERS ||--o{ MINT_REQUESTS : requests
+  USERS ||--o{ MINT_REQUESTS : approves
+  USERS ||--o{ SELL_REQUESTS : requests
+  USERS ||--o{ SELL_REQUESTS : approves
+  USERS ||--o{ CART_ITEMS : owns
+  USERS ||--o{ ORDERS : places
+  ARTWORKS ||--o{ MINT_REQUESTS : minted_by
+  ARTWORKS ||--o{ SELL_REQUESTS : listed_by
+  ARTWORKS ||--o{ CART_ITEMS : added_to
+  ARTWORKS ||--o{ ORDER_ITEMS : purchased_as
+  ORDERS ||--o{ ORDER_ITEMS : contains
+  ARTWORKS ||--o| NFT_SALE_NOTIFICATIONS : sale_outbox
+
+  AUTH_USERS {
+    uuid id PK
+    text email
+  }
+
+  USERS {
+    uuid id PK
+    text email UK
+    text username
+    text name
+    text role
+    text status
+    text wallet_address UK
+    int wallet_chain_id
+    timestamptz wallet_connected_at
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  ARTWORKS {
+    uuid id PK
+    uuid user_id FK
+    text title
+    text artist
+    text description
+    numeric price
+    text image_url
+    text status
+    text token_id
+    text opensea_listing_url
+    timestamptz sold_at
+    text buyer_wallet
+    uuid approved_by FK
+    uuid rejected_by FK
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  MINT_REQUESTS {
+    uuid id PK
+    uuid artwork_id FK
+    uuid requested_by FK
+    uuid approved_by FK
+    text status
+    text token_id
+    text transaction_hash
+    text admin_wallet_address
+    text rejection_reason
+    timestamptz requested_at
+    timestamptz approved_at
+    timestamptz rejected_at
+  }
+
+  SELL_REQUESTS {
+    uuid id PK
+    uuid artwork_id FK
+    uuid requested_by FK
+    uuid approved_by FK
+    text status
+    text opensea_listing_url
+    text rejection_reason
+    timestamptz requested_at
+    timestamptz approved_at
+    timestamptz rejected_at
+  }
+
+  CART_ITEMS {
+    uuid id PK
+    uuid user_id FK
+    uuid artwork_id FK
+    int quantity
+    timestamptz added_at
+  }
+
+  ORDERS {
+    uuid id PK
+    uuid user_id FK
+    numeric total_amount
+    text status
+    text payment_method
+    text shipping_address
+    text billing_address
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  ORDER_ITEMS {
+    uuid id PK
+    uuid order_id FK
+    uuid artwork_id FK
+    numeric price
+    int quantity
+  }
+
+  NFT_COLLECTIONS {
+    int id PK
+    text slug UK
+    text name
+    text image_url
+    text description
+    boolean verified
+    numeric floor_price
+    numeric total_volume
+    timestamptz last_fetched
+  }
+
+  NFT_SALE_NOTIFICATIONS {
+    uuid id PK
+    uuid artwork_id FK
+    text seller_email
+    text artwork_title
+    text token_id
+    text buyer_wallet
+    timestamptz sold_at
+    timestamptz seller_sent_at
+    timestamptz admin_sent_at
+    int attempt_count
+    text last_error
+  }
+```
+
+### Database Notes
+
+- `users.id` references Supabase Auth users and carries app-specific profile, role, and wallet metadata.
+- `artworks.status` drives the NFT workflow: `draft` -> `pending_mint` -> `minted` -> `listed_for_sale` -> `sold`. Rejected mint requests return the artwork to `draft`; rejected sell requests leave the artwork `minted`.
+- `mint_requests` and `sell_requests` are admin-reviewed workflow tables. Their `approved_by` fields point back to admin users.
+- `nft_sale_notifications` is an Edge Function outbox table from the sale notification migrations. It is represented in SQL migrations and Edge Function code, but it is not yet included in `lib/types/database.ts`.
+- Supabase Storage uses public read policies for `artworks`, `artwork_images`, and `profiles`, with authenticated writes constrained to user-owned path segments.
+- `nft_collections` stores cached or curated OpenSea collection metadata and is managed by admin-only RLS policies.
+
+### Smart Contracts and External Services
+
+- **ERC-721 on Polygon:** Thirdweb mints NFTs into the configured marketplace/admin wallet.
+- **WETH on Polygon:** OpenSea listings are created in WETH after PHP price conversion.
+- **OpenSea:** REST, Stream API, and `opensea-js` integrations power collection browsing, asset/event lookups, sale polling, and listing creation.
+- **Alchemy:** NFT metadata and wallet-owned NFT lookups, plus Polygon RPC configuration.
+- **CoinGecko:** PHP to WETH exchange-rate source used by upload and listing approval flows.
+- **Supabase:** Auth, Postgres, Storage, Vault, Edge Functions, `pg_cron`, and `pg_net`.
+- **Resend:** Transactional sale notification emails.
+- **Vercel KV:** Collection cache and queue backing store.
 
 ## Project Structure
 
-- `app/` - Next.js App Router and page components
-- `components/` - Reusable React components
-- `lib/` - Utility functions, hooks, and APIs
+- `app/` - Next.js App Router pages, layouts, middleware-adjacent route surfaces, and API route handlers
+- `components/` - Reusable UI, auth, layout, NFT, artwork, wallet, legal, and theme components
+- `lib/` - Supabase clients/API helpers, hooks, store, OpenSea/Thirdweb services, blockchain utilities, pricing helpers, and shared types
+- `supabase/` - Edge Functions and SQL migrations for RLS, storage policies, sale notification outbox, Vault helpers, and scheduled sale polling
+- `docs/` - Architecture map, agent context, caching notes, and capstone manual pages
 - `public/` - Static assets
 
 ## Technology Stack
 
 - **Framework**: Next.js 16.1 (Turbopack)
+- **Runtime/UI**: React 19.2, React Server Components, client route islands
 - **Language**: TypeScript
-- **Styling**: Tailwind CSS
+- **Styling**: Tailwind CSS, Radix UI, lucide-react, next-themes
 - **Authentication**: Supabase Auth
-- **Database**: Supabase PostgreSQL
-- **Storage**: Supabase Storage
-- **Blockchain Integration**: ethers.js v6, opensea-js
+- **Database**: Supabase PostgreSQL with RLS
+- **Storage**: Supabase Storage buckets for artwork and profile media
+- **Blockchain Integration**: Thirdweb, ethers v5, ethers v6 alias, opensea-js
 - **Form Handling**: react-hook-form with zod validation
 - **State Management**: Zustand
-- **Web3 Integration**: MetaMask SDK, ethers.js
+- **Web3 Integration**: MetaMask SDK, web3-react, Thirdweb provider
+- **Background Jobs**: Supabase Edge Functions, `pg_cron`, `pg_net`
+- **Caching/Queueing**: Vercel KV
+- **Email**: Resend
 - **Real-time Exchange Rates**: CoinGecko API
 
 ## License

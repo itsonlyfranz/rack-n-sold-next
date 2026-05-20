@@ -1,0 +1,1120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rack N Sold Architecture Map</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #08111f;
+      --panel: #0f1b2e;
+      --panel-soft: #13233a;
+      --panel-strong: #182b46;
+      --line: #28405f;
+      --line-strong: #3e5f88;
+      --text: #edf5ff;
+      --muted: #9fb3c8;
+      --faint: #70869e;
+      --blue: #60a5fa;
+      --cyan: #22d3ee;
+      --violet: #a78bfa;
+      --green: #34d399;
+      --amber: #f59e0b;
+      --rose: #fb7185;
+      --red: #ef4444;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      --radius: 22px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(96, 165, 250, 0.18), transparent 32rem),
+        radial-gradient(circle at 80% 10%, rgba(167, 139, 250, 0.16), transparent 34rem),
+        linear-gradient(180deg, #08111f 0%, #0b1423 48%, #08111f 100%);
+      color: var(--text);
+    }
+
+    body { overflow-x: hidden; }
+
+    a { color: inherit; }
+
+    .shell {
+      width: min(1480px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 28px 0 60px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+      gap: 20px;
+      align-items: stretch;
+      margin-bottom: 20px;
+    }
+
+    .hero-main,
+    .hero-side,
+    .panel,
+    .node-card,
+    .issue-card,
+    .flow-card {
+      border: 1px solid rgba(96, 165, 250, 0.18);
+      background: rgba(15, 27, 46, 0.82);
+      backdrop-filter: blur(16px);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-main { padding: 30px; position: relative; overflow: hidden; }
+    .hero-side { padding: 22px; }
+
+    .eyebrow {
+      color: var(--cyan);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      font-size: clamp(36px, 5vw, 70px);
+      line-height: 0.92;
+      letter-spacing: -0.055em;
+      margin: 0 0 18px;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.7;
+      max-width: 850px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 26px;
+    }
+
+    .stat {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(19, 35, 58, 0.78);
+      border: 1px solid rgba(159, 179, 200, 0.12);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 26px;
+      letter-spacing: -0.04em;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 20px 0;
+      position: sticky;
+      top: 10px;
+      z-index: 10;
+      padding: 12px;
+      border-radius: 22px;
+      background: rgba(8, 17, 31, 0.72);
+      border: 1px solid rgba(96, 165, 250, 0.16);
+      backdrop-filter: blur(18px);
+    }
+
+    .search {
+      min-width: min(420px, 100%);
+      flex: 1;
+      border: 1px solid rgba(159, 179, 200, 0.22);
+      background: rgba(15, 27, 46, 0.9);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 12px 16px;
+      outline: none;
+      font-size: 14px;
+    }
+
+    .filter, .zoom-btn {
+      border: 1px solid rgba(159, 179, 200, 0.18);
+      background: rgba(19, 35, 58, 0.8);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 11px 14px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: 160ms ease;
+    }
+
+    .filter:hover, .zoom-btn:hover,
+    .filter.active {
+      transform: translateY(-1px);
+      color: var(--text);
+      border-color: rgba(96, 165, 250, 0.55);
+      background: rgba(96, 165, 250, 0.18);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 390px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .panel {
+      padding: 22px;
+      margin-bottom: 20px;
+    }
+
+    .panel h2 {
+      margin: 0 0 16px;
+      font-size: 22px;
+      letter-spacing: -0.03em;
+    }
+
+    .panel p {
+      color: var(--muted);
+      line-height: 1.65;
+      margin: 0;
+    }
+
+    .map-wrap {
+      height: 680px;
+      overflow: hidden;
+      position: relative;
+      border-radius: 24px;
+      background:
+        linear-gradient(rgba(96, 165, 250, 0.055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(96, 165, 250, 0.055) 1px, transparent 1px),
+        rgba(10, 20, 36, 0.78);
+      background-size: 28px 28px;
+      border: 1px solid rgba(96, 165, 250, 0.18);
+    }
+
+    svg { width: 100%; height: 100%; display: block; cursor: grab; }
+    svg.dragging { cursor: grabbing; }
+
+    .edge {
+      stroke: rgba(159, 179, 200, 0.44);
+      stroke-width: 2;
+      fill: none;
+      marker-end: url(#arrow);
+    }
+
+    .edge.hot { stroke: rgba(245, 158, 11, 0.72); stroke-dasharray: 7 6; }
+
+    .svg-node rect {
+      fill: rgba(19, 35, 58, 0.96);
+      stroke: rgba(96, 165, 250, 0.35);
+      stroke-width: 1.4;
+      rx: 18;
+      transition: 160ms ease;
+    }
+
+    .svg-node:hover rect,
+    .svg-node.selected rect {
+      fill: rgba(37, 61, 98, 0.98);
+      stroke: rgba(34, 211, 238, 0.95);
+      stroke-width: 2.2;
+    }
+
+    .svg-node text {
+      fill: var(--text);
+      font-weight: 800;
+      pointer-events: none;
+    }
+
+    .svg-node .sub {
+      fill: var(--muted);
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    .svg-node .badge {
+      fill: var(--cyan);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+    }
+
+    .detail {
+      position: sticky;
+      top: 92px;
+    }
+
+    .detail-card {
+      border-radius: 22px;
+      background: rgba(15, 27, 46, 0.92);
+      border: 1px solid rgba(96, 165, 250, 0.22);
+      padding: 20px;
+      min-height: 250px;
+    }
+
+    .detail-card h3 {
+      margin: 0 0 8px;
+      font-size: 20px;
+    }
+
+    .detail-card .kind {
+      display: inline-flex;
+      padding: 6px 10px;
+      margin-bottom: 14px;
+      border-radius: 999px;
+      background: rgba(96, 165, 250, 0.14);
+      color: var(--cyan);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .detail-card ul {
+      padding-left: 18px;
+      margin: 12px 0 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .section-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .node-card {
+      padding: 16px;
+      min-height: 160px;
+      cursor: pointer;
+      transition: 170ms ease;
+    }
+
+    .node-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(34, 211, 238, 0.5);
+      background: rgba(24, 43, 70, 0.94);
+    }
+
+    .node-card h3,
+    .flow-card h3,
+    .issue-card h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .node-card p,
+    .flow-card p,
+    .issue-card p {
+      color: var(--muted);
+      line-height: 1.5;
+      margin: 0;
+      font-size: 13px;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .pill {
+      display: inline-flex;
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: rgba(159, 179, 200, 0.1);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .flow-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .flow-card {
+      padding: 16px;
+      border-left: 3px solid rgba(34, 211, 238, 0.72);
+    }
+
+    .issue-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .issue-card {
+      padding: 14px;
+      box-shadow: none;
+      cursor: pointer;
+      transition: 160ms ease;
+    }
+
+    .issue-card:hover {
+      transform: translateX(2px);
+      border-color: rgba(245, 158, 11, 0.54);
+    }
+
+    .severity {
+      display: inline-flex;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .critical { color: #fecdd3; background: rgba(239, 68, 68, 0.22); }
+    .high { color: #fed7aa; background: rgba(245, 158, 11, 0.22); }
+    .medium { color: #fde68a; background: rgba(234, 179, 8, 0.18); }
+    .low { color: #bfdbfe; background: rgba(96, 165, 250, 0.16); }
+
+    .api-table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 18px;
+      font-size: 13px;
+    }
+
+    .api-table th,
+    .api-table td {
+      text-align: left;
+      padding: 11px 12px;
+      border-bottom: 1px solid rgba(159, 179, 200, 0.1);
+      vertical-align: top;
+    }
+
+    .api-table th {
+      color: var(--text);
+      background: rgba(96, 165, 250, 0.12);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .api-table td {
+      color: var(--muted);
+      background: rgba(19, 35, 58, 0.42);
+    }
+
+    code {
+      color: #bfdbfe;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .footer-note {
+      color: var(--faint);
+      font-size: 12px;
+      line-height: 1.6;
+      margin-top: 18px;
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 1120px) {
+      .hero,
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .detail {
+        position: static;
+      }
+      .section-grid,
+      .flow-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 720px) {
+      .shell { width: min(100vw - 20px, 1480px); padding-top: 10px; }
+      .stats,
+      .section-grid,
+      .flow-grid {
+        grid-template-columns: 1fr;
+      }
+      .hero-main { padding: 22px; }
+      .map-wrap { height: 520px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-main">
+        <div class="eyebrow">Architecture Map</div>
+        <h1>Rack N Sold NFT Marketplace</h1>
+        <p>
+          A visual map of the current Next.js App Router codebase: routes, APIs, Supabase Auth/Postgres/Storage/Edge jobs,
+          wallet and OpenSea integrations, Vercel KV cache paths, and the most important architectural risks.
+        </p>
+        <div class="stats" id="stats"></div>
+      </div>
+      <aside class="hero-side">
+        <div class="eyebrow">Current Shape</div>
+        <p>
+          Next.js 16 + React 19 + TypeScript + Tailwind. Supabase is the primary backend, while Polygon, Thirdweb,
+          MetaMask, OpenSea, Alchemy, Resend, CoinGecko, and Vercel KV provide the marketplace runtime.
+        </p>
+        <div class="pill-row">
+          <span class="pill">App Router</span>
+          <span class="pill">Supabase SSR</span>
+          <span class="pill">Polygon</span>
+          <span class="pill">OpenSea</span>
+          <span class="pill">Vercel KV</span>
+        </div>
+      </aside>
+    </section>
+
+    <section class="controls" aria-label="Architecture controls">
+      <input id="search" class="search" type="search" placeholder="Search modules, files, flows, endpoints, issues...">
+      <button class="filter active" data-filter="all">All</button>
+      <button class="filter" data-filter="frontend">Frontend</button>
+      <button class="filter" data-filter="api">API</button>
+      <button class="filter" data-filter="data">Data</button>
+      <button class="filter" data-filter="external">External</button>
+      <button class="filter" data-filter="risk">Risks</button>
+    </section>
+
+    <div class="grid">
+      <div>
+        <section class="panel">
+          <h2>Interactive System Graph</h2>
+          <p>Drag to pan, scroll to zoom, and click any node to inspect files, responsibilities, dependencies, and risks.</p>
+          <div class="pill-row" style="margin: 14px 0;">
+            <button class="zoom-btn" id="zoomIn">Zoom In</button>
+            <button class="zoom-btn" id="zoomOut">Zoom Out</button>
+            <button class="zoom-btn" id="resetView">Reset</button>
+          </div>
+          <div class="map-wrap">
+            <svg id="map" viewBox="0 0 1320 760" role="img" aria-label="Rack N Sold architecture graph">
+              <defs>
+                <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+                  <path d="M0,0 L0,6 L9,3 z" fill="rgba(159,179,200,0.64)"></path>
+                </marker>
+              </defs>
+              <g id="viewport">
+                <g id="edges"></g>
+                <g id="nodes"></g>
+              </g>
+            </svg>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Main Modules</h2>
+          <div class="section-grid" id="moduleCards"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Primary Data Flows</h2>
+          <div class="flow-grid" id="flowCards"></div>
+        </section>
+
+        <section class="panel">
+          <h2>API Route Surface</h2>
+          <table class="api-table">
+            <thead>
+              <tr>
+                <th>Group</th>
+                <th>Endpoints</th>
+                <th>Backends</th>
+              </tr>
+            </thead>
+            <tbody id="apiRows"></tbody>
+          </table>
+        </section>
+      </div>
+
+      <aside class="detail">
+        <section class="detail-card" id="detail">
+          <span class="kind">Select a node</span>
+          <h3>Architecture Detail</h3>
+          <p>Click graph nodes, module cards, data flows, or issue cards to inspect source-backed architecture details.</p>
+        </section>
+
+        <section class="panel" style="margin-top: 20px;">
+          <h2>Issue Hotspots</h2>
+          <div class="issue-list" id="issueCards"></div>
+        </section>
+      </aside>
+    </div>
+
+    <p class="footer-note">
+      Generated from repository evidence in <code>app/</code>, <code>components/</code>, <code>lib/</code>, <code>supabase/</code>,
+      <code>middleware.ts</code>, <code>package.json</code>, <code>next.config.js</code>, and <code>README.md</code>.
+      The map is intentionally self-contained and does not load external assets.
+    </p>
+  </main>
+
+  <script>
+    const architecture = {
+      stats: [
+        ["35", "App pages/layouts"],
+        ["24", "Route handlers"],
+        ["36", "UI components"],
+        ["12", "Risk hotspots"]
+      ],
+      nodes: [
+        {
+          id: "browser",
+          label: "Browser",
+          sub: "Users, wallets, client components",
+          category: "frontend",
+          x: 54,
+          y: 86,
+          w: 210,
+          h: 92,
+          detail: "Client-facing UI includes marketing pages, gallery, account/profile, cart, upload flows, wallet controls, and client-heavy NFT detail routes.",
+          files: ["app/page.tsx", "components/layout/header.tsx", "components/auth/login-form.tsx", "components/wallet/connect-button.tsx"],
+          deps: ["React 19", "Tailwind", "Radix UI", "MetaMask SDK", "Zustand"]
+        },
+        {
+          id: "appRouter",
+          label: "Next App Router",
+          sub: "Pages, layouts, RSC shells",
+          category: "frontend",
+          x: 352,
+          y: 62,
+          w: 238,
+          h: 104,
+          detail: "Routes are organized under app/ with a root layout, server-first pages, and several full client pages for account, marketplace, auth, and upload flows.",
+          files: ["app/layout.tsx", "app/page.tsx", "app/gallery/page.tsx", "app/account/upload/page.tsx", "app/nfts/[contract]/[tokenId]/page.tsx"],
+          deps: ["Next.js 16.1.0", "React Server Components", "Client islands"]
+        },
+        {
+          id: "middleware",
+          label: "Middleware",
+          sub: "Supabase SSR auth gate",
+          category: "api",
+          x: 352,
+          y: 208,
+          w: 238,
+          h: 92,
+          detail: "Middleware refreshes Supabase auth state, redirects /account and /marketplace paths, protects selected pages, and checks users.role for admin access.",
+          files: ["middleware.ts"],
+          deps: ["@supabase/ssr", "users.role", "NextResponse"]
+        },
+        {
+          id: "routeHandlers",
+          label: "API Route Handlers",
+          sub: "Mint, sell, OpenSea, collections",
+          category: "api",
+          x: 352,
+          y: 354,
+          w: 238,
+          h: 104,
+          detail: "Route handlers provide mint/sell approvals, OpenSea and Alchemy proxying, collection cache/queue operations, wallet verification, exchange rates, and deprecated cron compatibility.",
+          files: ["app/api/mint/approve/route.ts", "app/api/sell/approve/route.ts", "app/api/opensea/assets/route.ts", "app/api/collections/process-queue/route.ts", "app/api/thirdweb/verify-wallet/route.ts"],
+          deps: ["Supabase", "OpenSea", "Alchemy", "Vercel KV", "Thirdweb"]
+        },
+        {
+          id: "supabase",
+          label: "Supabase Platform",
+          sub: "Auth, Postgres, Storage, Edge",
+          category: "data",
+          x: 698,
+          y: 170,
+          w: 250,
+          h: 112,
+          detail: "Supabase is the primary backend: auth/session storage, typed Postgres tables, storage buckets, RLS policies, Edge Function sale polling, Vault secrets, pg_cron, and pg_net.",
+          files: ["lib/supabase/server.ts", "lib/supabase/client.ts", "lib/types/database.ts", "supabase/migrations/20260428035500_harden_auth_rls_storage.sql"],
+          deps: ["Auth", "Postgres", "Storage", "Vault", "pg_cron", "pg_net"]
+        },
+        {
+          id: "database",
+          label: "Postgres Schema",
+          sub: "Artwork commerce data",
+          category: "data",
+          x: 716,
+          y: 330,
+          w: 216,
+          h: 104,
+          detail: "Core tables include users, artworks, cart_items, mint_requests, sell_requests, orders, order_items, nft_collections, and the sale notification outbox.",
+          files: ["lib/types/database.ts", "supabase/migrations/20260428043000_sale_notification_outbox.sql", "supabase/migrations/20260128_add_token_id_to_artworks_and_mint_requests.sql"],
+          deps: ["RLS policies", "RPCs", "Generated types"]
+        },
+        {
+          id: "edgeCron",
+          label: "Edge Sale Poller",
+          sub: "pg_cron to Edge Function",
+          category: "data",
+          x: 716,
+          y: 490,
+          w: 216,
+          h: 104,
+          detail: "pg_cron calls a Supabase Edge Function every minute. The function polls OpenSea sale events, records sold artwork state through RPCs, and sends notification emails.",
+          files: ["supabase/functions/poll-opensea-sales/index.ts", "supabase/migrations/20260428044500_schedule_sale_notification_cron.sql", "supabase/migrations/20260428043000_sale_notification_outbox.sql"],
+          deps: ["OpenSea", "Resend", "Supabase Vault", "nft_sale_notifications"]
+        },
+        {
+          id: "web3",
+          label: "Wallet and Chain",
+          sub: "Thirdweb, MetaMask, web3-react",
+          category: "external",
+          x: 1016,
+          y: 66,
+          w: 230,
+          h: 104,
+          detail: "The wallet layer currently mixes Thirdweb, MetaMask SDK, and web3-react connectors. Polygon RPC and admin credentials back mint/listing flows.",
+          files: ["app/providers.tsx", "lib/thirdweb-client.ts", "lib/thirdweb-server.ts", "lib/connectors/metamask.ts", "lib/hooks/useOpenSeaStream.ts"],
+          deps: ["Thirdweb", "MetaMask", "web3-react", "Polygon RPC"]
+        },
+        {
+          id: "openseaAlchemy",
+          label: "OpenSea and Alchemy",
+          sub: "NFT APIs, listings, metadata",
+          category: "external",
+          x: 1016,
+          y: 232,
+          w: 230,
+          h: 104,
+          detail: "OpenSea APIs and SDK power marketplace data and admin-created listings. Alchemy routes fetch NFT metadata and wallet-owned NFT data.",
+          files: ["lib/opensea/listings.ts", "lib/services/opensea.ts", "app/api/opensea/assets/route.ts", "app/api/alchemy/nfts/route.ts"],
+          deps: ["OpenSea SDK", "OpenSea Stream", "Alchemy NFT API", "ethers v5/v6"]
+        },
+        {
+          id: "vercelKv",
+          label: "Vercel KV",
+          sub: "Collection cache and queue",
+          category: "external",
+          x: 1016,
+          y: 398,
+          w: 230,
+          h: 94,
+          detail: "Collection cache and queue processing routes depend on Vercel KV, so runtime architecture is not only Next.js plus Supabase.",
+          files: ["app/api/collections/cache/route.ts", "app/api/collections/process-queue/route.ts", "package.json"],
+          deps: ["@vercel/kv", "CRON_SECRET"]
+        },
+        {
+          id: "resendCoin",
+          label: "Email and Pricing",
+          sub: "Resend, CoinGecko",
+          category: "external",
+          x: 1016,
+          y: 548,
+          w: 230,
+          h: 94,
+          detail: "Resend sends sale notification emails; CoinGecko-backed exchange-rate route supports PHP-to-WETH pricing displayed in upload and listing flows.",
+          files: ["lib/email/send-nft-sold.ts", "app/api/exchange-rate/route.ts", "README.md"],
+          deps: ["Resend", "CoinGecko", "PHP/WETH pricing"]
+        },
+        {
+          id: "risks",
+          label: "Architecture Hotspots",
+          sub: "Routing, types, secrets, duplication",
+          category: "risk",
+          x: 54,
+          y: 474,
+          w: 248,
+          h: 112,
+          detail: "Key risks include unreachable marketplace routes, duplicate NFT/detail/upload paths, multiple wallet/OpenSea stacks, ignored TypeScript build errors, hardcoded project/contract values, and generated Supabase type drift.",
+          files: ["middleware.ts", "next.config.js", "lib/opensea/listings.ts", "supabase/functions/poll-opensea-sales/index.ts", "lib/types/database.ts"],
+          deps: ["Routing policy", "Type safety", "Runtime configuration"]
+        }
+      ],
+      edges: [
+        ["browser", "appRouter"],
+        ["appRouter", "middleware"],
+        ["appRouter", "routeHandlers"],
+        ["middleware", "supabase"],
+        ["routeHandlers", "supabase"],
+        ["supabase", "database"],
+        ["database", "edgeCron"],
+        ["routeHandlers", "openseaAlchemy"],
+        ["routeHandlers", "web3"],
+        ["routeHandlers", "vercelKv"],
+        ["edgeCron", "openseaAlchemy"],
+        ["edgeCron", "resendCoin"],
+        ["browser", "web3"],
+        ["browser", "risks", "hot"],
+        ["middleware", "risks", "hot"],
+        ["routeHandlers", "risks", "hot"]
+      ],
+      modules: [
+        {
+          id: "routes",
+          category: "frontend",
+          name: "App Routes",
+          summary: "35 pages/layout files across marketing, auth, account/profile, admin, commerce, gallery, collections, and NFT detail surfaces.",
+          files: ["app/layout.tsx", "app/page.tsx", "app/gallery/page.tsx", "app/profile/page.tsx", "app/admin/mint-requests/page.tsx"]
+        },
+        {
+          id: "api",
+          category: "api",
+          name: "Route Handlers",
+          summary: "24 route handlers for minting, selling, collections, OpenSea/Alchemy data, exchange rates, wallet verification, and deprecated cron.",
+          files: ["app/api/mint/approve/route.ts", "app/api/sell/approve/route.ts", "app/api/collections/route.ts", "app/api/opensea/assets/route.ts"]
+        },
+        {
+          id: "supabase-access",
+          category: "data",
+          name: "Supabase Access",
+          summary: "Browser/server clients, auth utilities, generated database types, storage helpers, and app-level data functions.",
+          files: ["lib/supabase/client.ts", "lib/supabase/server.ts", "lib/supabase/api.ts", "lib/supabase/auth-utils.ts", "lib/types/database.ts"]
+        },
+        {
+          id: "ui-kit",
+          category: "frontend",
+          name: "UI System",
+          summary: "Tailwind, CSS variables, shadcn-style primitives, layout shell, auth forms, NFT cards, theme provider, and toast surfaces.",
+          files: ["tailwind.config.js", "app/globals.css", "components/ui/button.tsx", "components/layout/header.tsx", "components/nft/NFTCard.tsx"]
+        },
+        {
+          id: "web3-module",
+          category: "external",
+          name: "Wallet and Blockchain",
+          summary: "Thirdweb provider/server helpers, MetaMask SDK provider, web3-react connector, Polygon helpers, and admin mint/listing credentials.",
+          files: ["app/providers.tsx", "lib/thirdweb-server.ts", "lib/connectors/metamask.ts", "lib/utils/web3.ts"]
+        },
+        {
+          id: "sale-jobs",
+          category: "data",
+          name: "Sale Notification Jobs",
+          summary: "Supabase Edge Function plus pg_cron/pg_net and retryable outbox for OpenSea sale detection and Resend email notifications.",
+          files: ["supabase/functions/poll-opensea-sales/index.ts", "supabase/migrations/20260428044500_schedule_sale_notification_cron.sql"]
+        }
+      ],
+      flows: [
+        {
+          id: "auth-flow",
+          category: "data",
+          name: "Auth and Profile",
+          summary: "Forms and useAuth establish Supabase sessions; middleware refreshes cookies; server utilities read auth state; admin paths query users.role.",
+          files: ["components/auth/login-form.tsx", "lib/hooks/use-auth.ts", "middleware.ts", "lib/supabase/server.ts"]
+        },
+        {
+          id: "upload-flow",
+          category: "frontend",
+          name: "Artwork Upload",
+          summary: "Seller upload UI validates metadata and PHP price, uploads images to Supabase Storage, and creates artwork rows.",
+          files: ["app/account/upload/page.tsx", "components/nft/nft-upload-form.tsx", "lib/supabase/api.ts"]
+        },
+        {
+          id: "mint-flow",
+          category: "api",
+          name: "Mint Approval",
+          summary: "Mint requests are reviewed by admin UI, approved by API routes, and recorded with token/transaction metadata.",
+          files: ["app/api/mint/request/route.ts", "app/api/mint/approve/route.ts", "app/admin/mint-requests/page.tsx"]
+        },
+        {
+          id: "listing-flow",
+          category: "external",
+          name: "OpenSea Listing",
+          summary: "Sell approval converts PHP pricing to WETH and creates listings through server-side OpenSea SDK and admin wallet credentials.",
+          files: ["app/api/sell/approve/route.ts", "lib/opensea/listings.ts", "lib/constants/opensea-listing.ts"]
+        },
+        {
+          id: "sale-poller",
+          category: "data",
+          name: "Sale Detection",
+          summary: "pg_cron invokes the Edge Function, polls OpenSea, updates sold artwork state, queues notifications, and sends Resend emails.",
+          files: ["supabase/functions/poll-opensea-sales/index.ts", "supabase/migrations/20260428043000_sale_notification_outbox.sql"]
+        },
+        {
+          id: "cart-flow",
+          category: "frontend",
+          name: "Cart and Checkout",
+          summary: "Zustand persists cart client state and synchronizes mutations through Supabase data helpers.",
+          files: ["lib/store/cart.ts", "app/cart/page.tsx", "app/checkout/page.tsx"]
+        }
+      ],
+      apiGroups: [
+        ["Mint", ["/api/mint/request", "/api/mint/approve", "/api/mint/generate-signature"], "Supabase, Thirdweb, Polygon"],
+        ["Sell", ["/api/sell/request", "/api/sell/approve", "/api/artwork/update-status"], "Supabase, OpenSea, WETH pricing"],
+        ["Collections", ["/api/collections", "/api/collections/check", "/api/collections/setup", "/api/collections/cache", "/api/collections/process-queue"], "Supabase, Vercel KV, OpenSea"],
+        ["OpenSea", ["/api/opensea/assets", "/api/opensea/asset", "/api/opensea/events", "/api/opensea/collections", "/api/opensea/account", "/api/opensea/stream"], "OpenSea REST/Stream"],
+        ["Alchemy", ["/api/alchemy/nfts", "/api/alchemy/asset", "/api/alchemy/getNftMetadata"], "Alchemy NFT API"],
+        ["Support", ["/api/exchange-rate", "/api/thirdweb/verify-wallet", "/api/cron/poll-opensea-sales"], "CoinGecko, JWT, deprecated cron"]
+      ],
+      issues: [
+        {
+          id: "jwt-secret-fallback",
+          severity: "critical",
+          category: "risk",
+          title: "Wallet verification has a fixed JWT secret fallback",
+          summary: "Fail closed if AUTH_PRIVATE_KEY is missing; a fixed fallback would be unsafe in production.",
+          files: ["app/api/thirdweb/verify-wallet/route.ts"]
+        },
+        {
+          id: "type-errors-ignored",
+          severity: "high",
+          category: "risk",
+          title: "Production build ignores TypeScript errors",
+          summary: "next.config.js sets typescript.ignoreBuildErrors to true, weakening compile-time safety.",
+          files: ["next.config.js"]
+        },
+        {
+          id: "marketplace-redirect",
+          severity: "high",
+          category: "risk",
+          title: "Marketplace deep links redirect to /gallery",
+          summary: "Middleware redirects /marketplace and all nested marketplace paths, likely making marketplace detail pages unreachable.",
+          files: ["middleware.ts", "app/marketplace/[contract]/[tokenId]/page.tsx"]
+        },
+        {
+          id: "duplicate-nft-routes",
+          severity: "medium",
+          category: "risk",
+          title: "Three NFT detail URL patterns",
+          summary: "The app has /nft, /nfts, and /marketplace NFT detail routes, increasing canonical URL and maintenance risk.",
+          files: ["app/nft/[contractAddress]/[tokenId]/page.tsx", "app/nfts/[contract]/[tokenId]/page.tsx", "app/marketplace/[contract]/[tokenId]/page.tsx"]
+        },
+        {
+          id: "parallel-upload-flows",
+          severity: "medium",
+          category: "risk",
+          title: "Duplicate upload implementations",
+          summary: "Account upload and dashboard upload have overlapping product logic and separate implementations.",
+          files: ["app/account/upload/page.tsx", "app/dashboard/nfts/upload/page.tsx", "components/nft/nft-upload-form.tsx"]
+        },
+        {
+          id: "parallel-wallet-stacks",
+          severity: "medium",
+          category: "risk",
+          title: "Multiple wallet stacks",
+          summary: "Thirdweb, MetaMask SDK, and web3-react are all present, increasing bundle and integration complexity.",
+          files: ["app/providers.tsx", "lib/connectors/metamask.ts", "lib/hooks/useOpenSeaStream.ts"]
+        },
+        {
+          id: "hardcoded-config",
+          severity: "medium",
+          category: "risk",
+          title: "Hardcoded project and contract values",
+          summary: "Supabase cron URL and NFT contract defaults are hardcoded in runtime/migration paths.",
+          files: ["supabase/migrations/20260428044500_schedule_sale_notification_cron.sql", "lib/opensea/listings.ts", "supabase/functions/poll-opensea-sales/index.ts"]
+        },
+        {
+          id: "supabase-types-drift",
+          severity: "medium",
+          category: "risk",
+          title: "Generated Supabase types drift",
+          summary: "Newer notification outbox tables and RPCs are not reflected in lib/types/database.ts.",
+          files: ["lib/types/database.ts", "supabase/migrations/20260428043000_sale_notification_outbox.sql"]
+        }
+      ]
+    };
+
+    const state = {
+      filter: "all",
+      query: "",
+      selectedId: null,
+      scale: 1,
+      tx: 0,
+      ty: 0,
+      dragging: false,
+      last: null
+    };
+
+    const byId = (id) => document.getElementById(id);
+    const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+    }[char]));
+
+    function matches(item) {
+      const haystack = [
+        item.name, item.label, item.title, item.summary, item.detail, item.category,
+        ...(item.files || []), ...(item.deps || [])
+      ].join(" ").toLowerCase();
+      const categoryMatch = state.filter === "all" || item.category === state.filter;
+      return categoryMatch && haystack.includes(state.query);
+    }
+
+    function renderStats() {
+      byId("stats").innerHTML = architecture.stats.map(([value, label]) => `
+        <div class="stat"><strong>${esc(value)}</strong><span>${esc(label)}</span></div>
+      `).join("");
+    }
+
+    function renderGraph() {
+      const nodes = architecture.nodes.filter(matches);
+      const visible = new Set(nodes.map((node) => node.id));
+      const nodeById = Object.fromEntries(architecture.nodes.map((node) => [node.id, node]));
+      byId("edges").innerHTML = architecture.edges
+        .filter(([from, to]) => visible.has(from) && visible.has(to))
+        .map(([from, to, kind]) => {
+          const a = nodeById[from];
+          const b = nodeById[to];
+          const x1 = a.x + a.w;
+          const y1 = a.y + a.h / 2;
+          const x2 = b.x;
+          const y2 = b.y + b.h / 2;
+          const mid = Math.max(30, Math.abs(x2 - x1) / 2);
+          return `<path class="edge ${kind === "hot" ? "hot" : ""}" d="M ${x1} ${y1} C ${x1 + mid} ${y1}, ${x2 - mid} ${y2}, ${x2} ${y2}"></path>`;
+        }).join("");
+
+      byId("nodes").innerHTML = nodes.map((node) => `
+        <g class="svg-node ${state.selectedId === node.id ? "selected" : ""}" data-id="${esc(node.id)}" transform="translate(${node.x} ${node.y})">
+          <rect width="${node.w}" height="${node.h}"></rect>
+          <text class="badge" x="18" y="24">${esc(node.category)}</text>
+          <text x="18" y="52" font-size="17">${esc(node.label)}</text>
+          <text class="sub" x="18" y="76">${esc(node.sub)}</text>
+        </g>
+      `).join("");
+
+      document.querySelectorAll(".svg-node").forEach((el) => {
+        el.addEventListener("click", () => selectItem(nodeById[el.dataset.id]));
+      });
+      updateViewport();
+    }
+
+    function cardTemplate(item, type) {
+      const filePills = (item.files || []).slice(0, 4).map((file) => `<span class="pill">${esc(file)}</span>`).join("");
+      return `
+        <article class="${type}" data-id="${esc(item.id)}">
+          <h3>${esc(item.name || item.title)}</h3>
+          <p>${esc(item.summary || item.detail)}</p>
+          <div class="pill-row">${filePills}</div>
+        </article>
+      `;
+    }
+
+    function renderCards() {
+      byId("moduleCards").innerHTML = architecture.modules.filter(matches).map((item) => cardTemplate(item, "node-card")).join("");
+      byId("flowCards").innerHTML = architecture.flows.filter(matches).map((item) => cardTemplate(item, "flow-card")).join("");
+      byId("issueCards").innerHTML = architecture.issues.filter(matches).map((item) => `
+        <article class="issue-card" data-id="${esc(item.id)}">
+          <span class="severity ${esc(item.severity)}">${esc(item.severity)}</span>
+          <h3>${esc(item.title)}</h3>
+          <p>${esc(item.summary)}</p>
+        </article>
+      `).join("");
+
+      document.querySelectorAll(".node-card, .flow-card, .issue-card").forEach((el) => {
+        el.addEventListener("click", () => {
+          const all = [...architecture.modules, ...architecture.flows, ...architecture.issues];
+          selectItem(all.find((item) => item.id === el.dataset.id));
+        });
+      });
+    }
+
+    function renderApiRows() {
+      byId("apiRows").innerHTML = architecture.apiGroups.map(([group, endpoints, backends]) => `
+        <tr>
+          <td><strong>${esc(group)}</strong></td>
+          <td>${endpoints.map((endpoint) => `<code>${esc(endpoint)}</code>`).join("<br>")}</td>
+          <td>${esc(backends)}</td>
+        </tr>
+      `).join("");
+    }
+
+    function selectItem(item) {
+      if (!item) return;
+      state.selectedId = item.id;
+      const title = item.label || item.name || item.title;
+      const kind = item.category || item.severity || "detail";
+      const body = item.detail || item.summary || "";
+      const deps = item.deps && item.deps.length ? `
+        <h4>Dependencies</h4>
+        <ul>${item.deps.map((dep) => `<li>${esc(dep)}</li>`).join("")}</ul>
+      ` : "";
+      const files = item.files && item.files.length ? `
+        <h4>Evidence Files</h4>
+        <ul>${item.files.map((file) => `<li><code>${esc(file)}</code></li>`).join("")}</ul>
+      ` : "";
+      byId("detail").innerHTML = `
+        <span class="kind">${esc(kind)}</span>
+        <h3>${esc(title)}</h3>
+        <p>${esc(body)}</p>
+        ${deps}
+        ${files}
+      `;
+      renderGraph();
+    }
+
+    function updateViewport() {
+      byId("viewport").setAttribute("transform", `translate(${state.tx} ${state.ty}) scale(${state.scale})`);
+    }
+
+    function setZoom(nextScale) {
+      state.scale = Math.min(2.5, Math.max(0.55, nextScale));
+      updateViewport();
+    }
+
+    function initInteractions() {
+      document.querySelectorAll(".filter").forEach((button) => {
+        button.addEventListener("click", () => {
+          document.querySelectorAll(".filter").forEach((el) => el.classList.remove("active"));
+          button.classList.add("active");
+          state.filter = button.dataset.filter;
+          renderGraph();
+          renderCards();
+        });
+      });
+
+      byId("search").addEventListener("input", (event) => {
+        state.query = event.target.value.trim().toLowerCase();
+        renderGraph();
+        renderCards();
+      });
+
+      byId("zoomIn").addEventListener("click", () => setZoom(state.scale + 0.15));
+      byId("zoomOut").addEventListener("click", () => setZoom(state.scale - 0.15));
+      byId("resetView").addEventListener("click", () => {
+        state.scale = 1;
+        state.tx = 0;
+        state.ty = 0;
+        updateViewport();
+      });
+
+      const map = byId("map");
+      map.addEventListener("wheel", (event) => {
+        event.preventDefault();
+        setZoom(state.scale + (event.deltaY < 0 ? 0.08 : -0.08));
+      }, { passive: false });
+
+      map.addEventListener("pointerdown", (event) => {
+        state.dragging = true;
+        state.last = { x: event.clientX, y: event.clientY };
+        map.classList.add("dragging");
+        map.setPointerCapture(event.pointerId);
+      });
+      map.addEventListener("pointermove", (event) => {
+        if (!state.dragging || !state.last) return;
+        state.tx += event.clientX - state.last.x;
+        state.ty += event.clientY - state.last.y;
+        state.last = { x: event.clientX, y: event.clientY };
+        updateViewport();
+      });
+      map.addEventListener("pointerup", () => {
+        state.dragging = false;
+        state.last = null;
+        map.classList.remove("dragging");
+      });
+      map.addEventListener("pointerleave", () => {
+        state.dragging = false;
+        state.last = null;
+        map.classList.remove("dragging");
+      });
+    }
+
+    renderStats();
+    renderGraph();
+    renderCards();
+    renderApiRows();
+    initInteractions();
+    selectItem(architecture.nodes.find((node) => node.id === "appRouter"));
+  </script>
+</body>
+</html>

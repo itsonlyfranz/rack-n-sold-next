@@ -1,0 +1,1170 @@
+{
+  "metadata": {
+    "projectName": "Rack N Sold",
+    "repository": "rack-n-sold-next",
+    "workspaceRoot": "/Users/franz/Desktop/Capstone-oct-19-2025/rack-n-sold-next",
+    "generatedAt": "2026-05-16",
+    "purpose": "Architecture context for AI coding agents and maintainers.",
+    "accuracyNotes": [
+      "Facts are derived from source files in this repository, package metadata, README documentation, and local Supabase migrations.",
+      "Hosted Supabase policies or production configuration may differ from local migrations and are marked as inferred when not provable from source.",
+      "The working tree was already dirty before generation; this artifact intentionally describes the current checkout as observed."
+    ]
+  },
+  "techStack": {
+    "framework": {
+      "name": "Next.js",
+      "version": "16.1.0",
+      "router": "App Router",
+      "renderingModel": "React Server Components with many client-component route islands",
+      "evidence": [
+        "package.json",
+        "app/layout.tsx",
+        "app/page.tsx"
+      ]
+    },
+    "language": {
+      "name": "TypeScript",
+      "version": "^5.3.2",
+      "strict": true,
+      "productionBuildTypeChecking": "disabled by next.config.js typescript.ignoreBuildErrors",
+      "evidence": [
+        "package.json",
+        "tsconfig.json",
+        "next.config.js"
+      ]
+    },
+    "ui": {
+      "libraries": [
+        "Tailwind CSS",
+        "Radix UI",
+        "lucide-react",
+        "next-themes",
+        "react-hot-toast"
+      ],
+      "stylingModel": "Tailwind utilities with shadcn-style CSS variables and reusable UI primitives",
+      "evidence": [
+        "tailwind.config.js",
+        "app/globals.css",
+        "components/ui/button.tsx",
+        "components/theme/theme-provider.tsx"
+      ]
+    },
+    "backendAndData": {
+      "primary": [
+        "Supabase Auth",
+        "Supabase Postgres",
+        "Supabase Storage",
+        "Supabase Edge Functions"
+      ],
+      "supporting": [
+        "Vercel KV for collection cache/queue",
+        "pg_cron and pg_net for scheduled sale polling"
+      ],
+      "evidence": [
+        "lib/supabase/client.ts",
+        "lib/supabase/server.ts",
+        "app/api/collections/cache/route.ts",
+        "app/api/collections/process-queue/route.ts",
+        "supabase/migrations/20260428044500_schedule_sale_notification_cron.sql"
+      ]
+    },
+    "web3": {
+      "libraries": [
+        "thirdweb",
+        "@metamask/sdk-react",
+        "@web3-react/core",
+        "ethers v5",
+        "ethers v6 alias",
+        "opensea-js",
+        "@opensea/stream-js"
+      ],
+      "chain": "Polygon",
+      "evidence": [
+        "package.json",
+        "app/providers.tsx",
+        "lib/opensea/listings.ts",
+        "lib/services/opensea.ts",
+        "lib/hooks/useOpenSeaStream.ts"
+      ]
+    },
+    "deployment": {
+      "target": "Vercel-shaped Next.js deployment with Supabase hosted services",
+      "evidence": [
+        "README.md",
+        "package.json",
+        "next.config.js"
+      ]
+    }
+  },
+  "entryPoints": {
+    "root": [
+      {
+        "name": "Application root layout",
+        "path": "app/layout.tsx",
+        "role": "Defines global metadata, font, theme provider, Thirdweb/MetaMask providers, and toast provider."
+      },
+      {
+        "name": "Home page",
+        "path": "app/page.tsx",
+        "route": "/",
+        "role": "Landing page wrapped in the main layout."
+      },
+      {
+        "name": "Middleware",
+        "path": "middleware.ts",
+        "role": "Creates Supabase SSR client, refreshes sessions, redirects legacy paths, protects selected routes, and checks admin role."
+      }
+    ],
+    "routeGroups": [
+      {
+        "name": "Marketing and content",
+        "routes": [
+          "/",
+          "/gallery",
+          "/gallery/[id]",
+          "/artists",
+          "/collections/[slug]",
+          "/terms",
+          "/privacy"
+        ],
+        "evidence": [
+          "app/page.tsx",
+          "app/gallery/page.tsx",
+          "app/gallery/[id]/page.tsx",
+          "app/artists/page.tsx",
+          "app/collections/[slug]/page.tsx"
+        ]
+      },
+      {
+        "name": "Authentication",
+        "routes": [
+          "/auth/login",
+          "/auth/signup",
+          "/auth/forgot",
+          "/auth/verify-otp",
+          "/auth/callback"
+        ],
+        "evidence": [
+          "app/auth/login/page.tsx",
+          "app/auth/signup/page.tsx",
+          "app/auth/forgot/page.tsx",
+          "app/auth/verify-otp/page.tsx",
+          "app/auth/callback/route.ts"
+        ]
+      },
+      {
+        "name": "Account and profile",
+        "routes": [
+          "/profile",
+          "/account",
+          "/account/artworks",
+          "/account/purchases",
+          "/account/settings",
+          "/account/upload",
+          "/account/wallet"
+        ],
+        "evidence": [
+          "app/profile/page.tsx",
+          "app/account/page.tsx",
+          "app/account/artworks/page.tsx",
+          "app/account/upload/page.tsx",
+          "middleware.ts"
+        ]
+      },
+      {
+        "name": "Dashboard and admin",
+        "routes": [
+          "/dashboard",
+          "/dashboard/nfts",
+          "/dashboard/nfts/upload",
+          "/admin/mint-requests"
+        ],
+        "evidence": [
+          "app/dashboard/page.tsx",
+          "app/dashboard/nfts/page.tsx",
+          "app/dashboard/nfts/upload/page.tsx",
+          "app/admin/mint-requests/page.tsx"
+        ]
+      },
+      {
+        "name": "NFT and marketplace detail",
+        "routes": [
+          "/nft/[contractAddress]/[tokenId]",
+          "/nfts/[contract]/[tokenId]",
+          "/marketplace/[contract]/[tokenId]",
+          "/marketplace/my-wallet-nfts",
+          "/marketplace/my-collection"
+        ],
+        "evidence": [
+          "app/nft/[contractAddress]/[tokenId]/page.tsx",
+          "app/nfts/[contract]/[tokenId]/page.tsx",
+          "app/marketplace/[contract]/[tokenId]/page.tsx",
+          "middleware.ts"
+        ]
+      },
+      {
+        "name": "Commerce",
+        "routes": [
+          "/cart",
+          "/checkout",
+          "/orders"
+        ],
+        "evidence": [
+          "app/cart/page.tsx",
+          "app/checkout/page.tsx",
+          "app/orders/page.tsx",
+          "lib/store/cart.ts"
+        ]
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "layout-shell",
+      "name": "Layout Shell",
+      "type": "ui",
+      "paths": [
+        "components/layout/main-layout.tsx",
+        "components/layout/header.tsx",
+        "components/layout/footer.tsx",
+        "components/layout/dashboard-layout.tsx",
+        "components/layout/wallet-status.tsx"
+      ],
+      "responsibility": "Shared page chrome, navigation, dashboard framing, and wallet status presentation.",
+      "dependencies": [
+        "Next.js routing",
+        "theme provider",
+        "wallet components"
+      ]
+    },
+    {
+      "id": "auth-ui",
+      "name": "Authentication UI",
+      "type": "client-ui",
+      "paths": [
+        "components/auth/login-form.tsx",
+        "components/auth/signup-form.tsx",
+        "components/auth/wallet-auth-section.tsx",
+        "components/auth/wallet-management.tsx",
+        "lib/hooks/use-auth.ts"
+      ],
+      "responsibility": "Email/password auth, signup, profile synchronization, wallet auth surfaces, and client session state.",
+      "dependencies": [
+        "Supabase browser client",
+        "React Hook Form",
+        "Zod",
+        "Next router"
+      ]
+    },
+    {
+      "id": "nft-artwork-ui",
+      "name": "NFT and Artwork UI",
+      "type": "mixed-rsc-client",
+      "paths": [
+        "components/nft/nft-upload-form.tsx",
+        "components/nft/NFTCard.tsx",
+        "components/nft/CollectionCard.tsx",
+        "components/nft/user-nft-dashboard.tsx",
+        "components/artwork/artwork-card.tsx",
+        "app/artwork/[id]/page.tsx",
+        "app/artwork/[id]/edit/page.tsx"
+      ],
+      "responsibility": "Artwork upload, gallery cards, NFT management, artwork detail/edit views, and mint/sell actions.",
+      "dependencies": [
+        "Supabase database and storage",
+        "OpenSea",
+        "Thirdweb",
+        "exchange-rate API"
+      ]
+    },
+    {
+      "id": "wallet-web3",
+      "name": "Wallet and Web3 Layer",
+      "type": "integration",
+      "paths": [
+        "app/providers.tsx",
+        "components/wallet/connect-button.tsx",
+        "components/wallet/custom-connect-wallet.tsx",
+        "components/navigation/connect-wallet-button.tsx",
+        "lib/connectors/metamask.ts",
+        "lib/services/web3.ts",
+        "lib/utils/web3.ts"
+      ],
+      "responsibility": "MetaMask connection, Thirdweb provider setup, chain helpers, wallet display, and legacy web3-react connector support.",
+      "dependencies": [
+        "thirdweb",
+        "@metamask/sdk-react",
+        "@web3-react/*",
+        "Polygon RPC"
+      ]
+    },
+    {
+      "id": "supabase-data-access",
+      "name": "Supabase Data Access",
+      "type": "data-access",
+      "paths": [
+        "lib/supabase/client.ts",
+        "lib/supabase/server.ts",
+        "lib/supabase/api.ts",
+        "lib/supabase/auth-utils.ts",
+        "lib/types/database.ts"
+      ],
+      "responsibility": "Browser/server Supabase clients, typed database access, auth guards, profile lookup, storage upload helpers, and cart/artwork APIs.",
+      "dependencies": [
+        "@supabase/ssr",
+        "@supabase/supabase-js",
+        "Supabase Auth",
+        "Supabase Postgres",
+        "Supabase Storage"
+      ]
+    },
+    {
+      "id": "cart-store",
+      "name": "Cart Store",
+      "type": "state",
+      "paths": [
+        "lib/store/cart.ts",
+        "app/cart/page.tsx",
+        "app/checkout/page.tsx",
+        "app/orders/page.tsx"
+      ],
+      "responsibility": "Client cart state persisted by Zustand and synchronized through Supabase API helper functions.",
+      "dependencies": [
+        "zustand",
+        "lib/supabase/api.ts",
+        "cart_items table"
+      ]
+    }
+  ],
+  "apiEndpoints": [
+    {
+      "group": "Minting",
+      "endpoints": [
+        {
+          "method": "route-handler",
+          "route": "/api/mint/request",
+          "path": "app/api/mint/request/route.ts",
+          "purpose": "Create mint request records for artwork approval."
+        },
+        {
+          "method": "route-handler",
+          "route": "/api/mint/approve",
+          "path": "app/api/mint/approve/route.ts",
+          "purpose": "Admin approval path for minting and token tracking."
+        },
+        {
+          "method": "route-handler",
+          "route": "/api/mint/generate-signature",
+          "path": "app/api/mint/generate-signature/route.ts",
+          "purpose": "Generate signing data for mint operations."
+        }
+      ]
+    },
+    {
+      "group": "Selling and listing",
+      "endpoints": [
+        {
+          "route": "/api/sell/request",
+          "path": "app/api/sell/request/route.ts",
+          "purpose": "Create sell/listing requests."
+        },
+        {
+          "route": "/api/sell/approve",
+          "path": "app/api/sell/approve/route.ts",
+          "purpose": "Admin approval path that can create OpenSea listings."
+        },
+        {
+          "route": "/api/artwork/update-status",
+          "path": "app/api/artwork/update-status/route.ts",
+          "purpose": "Update artwork lifecycle status."
+        }
+      ]
+    },
+    {
+      "group": "Collections",
+      "endpoints": [
+        {
+          "route": "/api/collections",
+          "path": "app/api/collections/route.ts",
+          "purpose": "Collection data fetch/create path."
+        },
+        {
+          "route": "/api/collections/check",
+          "path": "app/api/collections/check/route.ts",
+          "purpose": "Check collection availability or cached state."
+        },
+        {
+          "route": "/api/collections/setup",
+          "path": "app/api/collections/setup/route.ts",
+          "purpose": "Bootstrap collection records."
+        },
+        {
+          "route": "/api/collections/cache",
+          "path": "app/api/collections/cache/route.ts",
+          "purpose": "Vercel KV-backed collection cache."
+        },
+        {
+          "route": "/api/collections/process-queue",
+          "path": "app/api/collections/process-queue/route.ts",
+          "purpose": "Queue processing backed by Vercel KV and server credentials."
+        }
+      ]
+    },
+    {
+      "group": "External NFT data",
+      "endpoints": [
+        {
+          "route": "/api/opensea/assets",
+          "path": "app/api/opensea/assets/route.ts",
+          "purpose": "Fetch OpenSea assets."
+        },
+        {
+          "route": "/api/opensea/asset",
+          "path": "app/api/opensea/asset/route.ts",
+          "purpose": "Fetch one OpenSea asset."
+        },
+        {
+          "route": "/api/opensea/events",
+          "path": "app/api/opensea/events/route.ts",
+          "purpose": "Fetch OpenSea event data."
+        },
+        {
+          "route": "/api/opensea/collections",
+          "path": "app/api/opensea/collections/route.ts",
+          "purpose": "Fetch OpenSea collection data."
+        },
+        {
+          "route": "/api/opensea/account",
+          "path": "app/api/opensea/account/route.ts",
+          "purpose": "Fetch OpenSea account data."
+        },
+        {
+          "route": "/api/opensea/stream",
+          "path": "app/api/opensea/stream/route.ts",
+          "purpose": "OpenSea stream related route."
+        },
+        {
+          "route": "/api/alchemy/nfts",
+          "path": "app/api/alchemy/nfts/route.ts",
+          "purpose": "Fetch NFT data from Alchemy."
+        },
+        {
+          "route": "/api/alchemy/asset",
+          "path": "app/api/alchemy/asset/route.ts",
+          "purpose": "Fetch an NFT asset from Alchemy."
+        },
+        {
+          "route": "/api/alchemy/getNftMetadata",
+          "path": "app/api/alchemy/getNftMetadata/route.ts",
+          "purpose": "Fetch NFT metadata from Alchemy."
+        }
+      ]
+    },
+    {
+      "group": "Runtime support",
+      "endpoints": [
+        {
+          "route": "/api/exchange-rate",
+          "path": "app/api/exchange-rate/route.ts",
+          "purpose": "Fetch PHP-to-WETH pricing support data."
+        },
+        {
+          "route": "/api/thirdweb/verify-wallet",
+          "path": "app/api/thirdweb/verify-wallet/route.ts",
+          "purpose": "Verify wallet ownership/auth claims."
+        },
+        {
+          "route": "/api/cron/poll-opensea-sales",
+          "path": "app/api/cron/poll-opensea-sales/route.ts",
+          "purpose": "Deprecated Next cron route returning 410; real job moved to Supabase Edge Function."
+        }
+      ]
+    }
+  ],
+  "database": {
+    "provider": "Supabase Postgres",
+    "typedSchemaFile": "lib/types/database.ts",
+    "tables": [
+      {
+        "name": "users",
+        "role": "Profiles, roles, wallet connection fields, auth-linked user records.",
+        "evidence": [
+          "lib/types/database.ts",
+          "supabase/migrations/20240325_add_wallet_address_to_users.sql"
+        ]
+      },
+      {
+        "name": "artworks",
+        "role": "Artwork metadata, seller ownership, image URL, status, token ID, OpenSea listing URL, and sale metadata.",
+        "evidence": [
+          "lib/types/database.ts",
+          "supabase/migrations/20260128_add_token_id_to_artworks_and_mint_requests.sql",
+          "supabase/migrations/20260202120000_artworks_sold_columns.sql"
+        ]
+      },
+      {
+        "name": "mint_requests",
+        "role": "Admin-reviewed mint request workflow with approval/rejection metadata and token tracking.",
+        "evidence": [
+          "lib/types/database.ts",
+          "app/api/mint/request/route.ts",
+          "app/api/mint/approve/route.ts"
+        ]
+      },
+      {
+        "name": "sell_requests",
+        "role": "Admin-reviewed sell/listing request workflow.",
+        "evidence": [
+          "lib/types/database.ts",
+          "app/api/sell/request/route.ts",
+          "app/api/sell/approve/route.ts"
+        ]
+      },
+      {
+        "name": "cart_items",
+        "role": "User cart persistence linked to artworks.",
+        "evidence": [
+          "lib/types/database.ts",
+          "lib/store/cart.ts"
+        ]
+      },
+      {
+        "name": "orders",
+        "role": "Order records for checkout history.",
+        "evidence": [
+          "lib/types/database.ts",
+          "app/orders/page.tsx"
+        ]
+      },
+      {
+        "name": "order_items",
+        "role": "Order line items linked to artworks/orders.",
+        "evidence": [
+          "lib/types/database.ts"
+        ]
+      },
+      {
+        "name": "nft_collections",
+        "role": "Cached or curated collection metadata with RLS policies.",
+        "evidence": [
+          "lib/types/database.ts",
+          "supabase/migrations/20260428035500_harden_auth_rls_storage.sql"
+        ]
+      },
+      {
+        "name": "nft_sale_notifications",
+        "role": "Retryable outbox for sale notification emails.",
+        "typedInDatabaseTs": false,
+        "evidence": [
+          "supabase/migrations/20260428043000_sale_notification_outbox.sql",
+          "supabase/functions/poll-opensea-sales/index.ts"
+        ]
+      }
+    ],
+    "storage": {
+      "buckets": [
+        "artworks",
+        "artwork_images",
+        "profiles"
+      ],
+      "policyModel": "Public read for selected buckets and authenticated object writes constrained by user-id path segments.",
+      "evidence": [
+        "supabase/migrations/20260428035500_harden_auth_rls_storage.sql",
+        "lib/supabase/api.ts",
+        "setup-supabase.js"
+      ]
+    },
+    "rpcs": [
+      {
+        "name": "record_nft_sale_and_enqueue_notification",
+        "role": "Atomic sale status update and notification enqueue.",
+        "typedInDatabaseTs": false,
+        "evidence": [
+          "supabase/migrations/20260428043000_sale_notification_outbox.sql",
+          "supabase/functions/poll-opensea-sales/index.ts"
+        ]
+      },
+      {
+        "name": "claim_pending_nft_sale_notifications",
+        "role": "Claim retryable notification work for the edge function.",
+        "typedInDatabaseTs": false,
+        "evidence": [
+          "supabase/migrations/20260428043000_sale_notification_outbox.sql",
+          "supabase/functions/poll-opensea-sales/index.ts"
+        ]
+      },
+      {
+        "name": "get_sale_notification_secret",
+        "role": "Read Vault-backed sale notification secrets.",
+        "typedInDatabaseTs": false,
+        "evidence": [
+          "supabase/migrations/20260428044500_schedule_sale_notification_cron.sql",
+          "supabase/functions/poll-opensea-sales/index.ts"
+        ]
+      },
+      {
+        "name": "upsert_sale_notification_secret",
+        "role": "Service-role-only Vault upsert helper.",
+        "typedInDatabaseTs": false,
+        "evidence": [
+          "supabase/migrations/20260428045000_sale_notification_secret_upsert_rpc.sql"
+        ]
+      }
+    ]
+  },
+  "externalServices": [
+    {
+      "name": "Supabase",
+      "kind": "backend-platform",
+      "uses": [
+        "Auth",
+        "Postgres",
+        "Storage",
+        "Edge Functions",
+        "Vault",
+        "pg_cron",
+        "pg_net"
+      ],
+      "evidence": [
+        "lib/supabase/server.ts",
+        "supabase/functions/poll-opensea-sales/index.ts",
+        "supabase/migrations/20260428044500_schedule_sale_notification_cron.sql"
+      ]
+    },
+    {
+      "name": "OpenSea",
+      "kind": "marketplace-api",
+      "uses": [
+        "REST asset/event/collection APIs",
+        "SDK listing creation",
+        "Stream API hook"
+      ],
+      "evidence": [
+        "app/api/opensea/assets/route.ts",
+        "lib/opensea/listings.ts",
+        "lib/hooks/useOpenSeaStream.ts"
+      ]
+    },
+    {
+      "name": "Alchemy",
+      "kind": "nft-and-rpc-api",
+      "uses": [
+        "NFT metadata",
+        "Polygon RPC configuration"
+      ],
+      "evidence": [
+        "app/api/alchemy/nfts/route.ts",
+        "app/api/alchemy/getNftMetadata/route.ts",
+        "README.md"
+      ]
+    },
+    {
+      "name": "Thirdweb",
+      "kind": "web3-sdk",
+      "uses": [
+        "client provider",
+        "server/admin minting helpers"
+      ],
+      "evidence": [
+        "app/providers.tsx",
+        "lib/thirdweb-client.ts",
+        "lib/thirdweb-server.ts",
+        "app/api/mint/approve/route.ts"
+      ]
+    },
+    {
+      "name": "MetaMask",
+      "kind": "wallet",
+      "uses": [
+        "MetaMask SDK provider",
+        "wallet connection UI"
+      ],
+      "evidence": [
+        "app/providers.tsx",
+        "components/wallet/connect-button.tsx"
+      ]
+    },
+    {
+      "name": "Vercel KV",
+      "kind": "cache-queue",
+      "uses": [
+        "collection cache",
+        "collection processing queue"
+      ],
+      "evidence": [
+        "package.json",
+        "app/api/collections/cache/route.ts",
+        "app/api/collections/process-queue/route.ts"
+      ]
+    },
+    {
+      "name": "Resend",
+      "kind": "email",
+      "uses": [
+        "NFT sale notification emails"
+      ],
+      "evidence": [
+        "package.json",
+        "lib/email/send-nft-sold.ts",
+        "supabase/functions/poll-opensea-sales/index.ts"
+      ]
+    },
+    {
+      "name": "CoinGecko",
+      "kind": "pricing-api",
+      "uses": [
+        "PHP to WETH conversion"
+      ],
+      "evidence": [
+        "README.md",
+        "app/api/exchange-rate/route.ts"
+      ]
+    }
+  ],
+  "dataFlows": [
+    {
+      "id": "auth-session",
+      "name": "Supabase Auth Session Flow",
+      "confidence": "high",
+      "steps": [
+        "User submits auth forms in client components.",
+        "useAuth and Supabase browser client establish a session.",
+        "Middleware creates a Supabase SSR client and calls auth.getUser on matched page requests.",
+        "Server utilities use cookies() with @supabase/ssr for RSC/API access.",
+        "Admin requests additionally query users.role before allowing access."
+      ],
+      "evidence": [
+        "components/auth/login-form.tsx",
+        "lib/hooks/use-auth.ts",
+        "middleware.ts",
+        "lib/supabase/server.ts",
+        "lib/supabase/auth-utils.ts"
+      ]
+    },
+    {
+      "id": "artwork-upload",
+      "name": "Artwork Upload Flow",
+      "confidence": "high",
+      "steps": [
+        "Seller enters artwork metadata and PHP price in upload UI.",
+        "Client validates form data and uploads image to Supabase Storage.",
+        "Client creates artwork row in Supabase Postgres.",
+        "Artwork appears in account/dashboard/gallery surfaces based on status and ownership."
+      ],
+      "evidence": [
+        "app/account/upload/page.tsx",
+        "app/dashboard/nfts/upload/page.tsx",
+        "components/nft/nft-upload-form.tsx",
+        "lib/supabase/api.ts"
+      ]
+    },
+    {
+      "id": "mint-approval",
+      "name": "Mint Approval Flow",
+      "confidence": "high",
+      "steps": [
+        "Seller or UI creates a mint request for artwork.",
+        "Admin reviews requests in admin dashboard.",
+        "Approval API mints or records NFT token data through Thirdweb/blockchain helpers.",
+        "Token ID and transaction metadata are stored in Supabase."
+      ],
+      "evidence": [
+        "app/api/mint/request/route.ts",
+        "app/api/mint/approve/route.ts",
+        "app/admin/mint-requests/page.tsx",
+        "lib/thirdweb-server.ts",
+        "supabase/migrations/20260128_add_token_id_to_artworks_and_mint_requests.sql"
+      ]
+    },
+    {
+      "id": "sell-listing",
+      "name": "Sell Request and OpenSea Listing Flow",
+      "confidence": "high",
+      "steps": [
+        "Seller creates a sell request after minting.",
+        "Admin approval API converts PHP pricing to WETH and calls OpenSea listing service.",
+        "Server-side OpenSea SDK signs with admin wallet credentials.",
+        "Artwork stores listing URL/status in Supabase."
+      ],
+      "evidence": [
+        "app/api/sell/request/route.ts",
+        "app/api/sell/approve/route.ts",
+        "lib/opensea/listings.ts",
+        "lib/constants/opensea-listing.ts",
+        "README.md"
+      ]
+    },
+    {
+      "id": "sale-notification",
+      "name": "Automated Sale Detection and Notification Flow",
+      "confidence": "high",
+      "steps": [
+        "pg_cron invokes the Supabase Edge Function every minute through pg_net.",
+        "Edge Function authenticates the x-cron-secret from Vault/env.",
+        "Function polls OpenSea sale events for listed NFTs.",
+        "RPC records sold status and enqueues a notification outbox item.",
+        "Function claims pending outbox rows and sends seller/admin emails through Resend."
+      ],
+      "evidence": [
+        "supabase/migrations/20260428044500_schedule_sale_notification_cron.sql",
+        "supabase/functions/poll-opensea-sales/index.ts",
+        "supabase/migrations/20260428043000_sale_notification_outbox.sql",
+        "README.md"
+      ]
+    },
+    {
+      "id": "collection-cache",
+      "name": "Collection Cache and Queue Flow",
+      "confidence": "medium",
+      "steps": [
+        "Collection endpoints read/write collection metadata.",
+        "Cache and process-queue route handlers use Vercel KV.",
+        "Supabase tables and OpenSea/Alchemy APIs provide backing data."
+      ],
+      "evidence": [
+        "app/api/collections/route.ts",
+        "app/api/collections/cache/route.ts",
+        "app/api/collections/process-queue/route.ts",
+        "package.json"
+      ]
+    },
+    {
+      "id": "cart-checkout",
+      "name": "Cart and Checkout Flow",
+      "confidence": "medium",
+      "steps": [
+        "Client cart state lives in Zustand with local persistence.",
+        "Cart mutations call Supabase API helper functions.",
+        "Checkout and orders pages consume persisted database state."
+      ],
+      "evidence": [
+        "lib/store/cart.ts",
+        "lib/supabase/api.ts",
+        "app/cart/page.tsx",
+        "app/checkout/page.tsx",
+        "app/orders/page.tsx"
+      ]
+    }
+  ],
+  "dependencies": {
+    "runtime": {
+      "next": "16.1.0",
+      "react": "19.2.0",
+      "@supabase/ssr": "^0.5.2",
+      "@supabase/supabase-js": "^2.49.1",
+      "thirdweb": "^5.93.14",
+      "opensea-js": "^7.1.18",
+      "@vercel/kv": "^3.0.0",
+      "zustand": "^4.4.6",
+      "zod": "^3.22.4"
+    },
+    "declaredButPotentiallyUnused": [
+      {
+        "name": "@tanstack/react-query",
+        "reason": "Declared in package.json but no QueryClient/useQuery usage was found in the explored source."
+      }
+    ],
+    "possiblyTransitiveOnlyImports": [
+      {
+        "name": "uuid",
+        "reason": "Referenced by upload form according to code survey but not declared in package.json."
+      },
+      {
+        "name": "date-fns",
+        "reason": "Referenced by account page according to code survey but not declared in package.json."
+      }
+    ],
+    "evidence": [
+      "package.json",
+      "components/nft/nft-upload-form.tsx",
+      "app/account/page.tsx"
+    ]
+  },
+  "constraints": [
+    {
+      "id": "environment-required",
+      "name": "Environment configuration is required for most runtime paths",
+      "details": "Supabase URL/anon key/service role, Polygon RPC, OpenSea API key, Thirdweb admin credentials, Resend keys, Vercel KV, and app URLs are required by different subsystems.",
+      "evidence": [
+        "README.md",
+        "lib/supabase/client.ts",
+        "lib/opensea/listings.ts",
+        "app/providers.tsx"
+      ]
+    },
+    {
+      "id": "api-middleware-skip",
+      "name": "Middleware does not protect API routes",
+      "details": "The middleware matcher excludes api, so each route handler must enforce its own auth and authorization.",
+      "evidence": [
+        "middleware.ts"
+      ]
+    },
+    {
+      "id": "supabase-rls",
+      "name": "Supabase RLS controls exposed data access",
+      "details": "Local migrations enable RLS for users/storage/collections, but app queries imply joins that may need additional hosted policies.",
+      "confidence": "medium",
+      "evidence": [
+        "supabase/migrations/20240325_add_wallet_address_to_users.sql",
+        "supabase/migrations/20260428035500_harden_auth_rls_storage.sql",
+        "lib/hooks/use-auth.ts"
+      ]
+    },
+    {
+      "id": "offline-html",
+      "name": "Architecture map is self-contained",
+      "details": "The generated HTML does not rely on CDN scripts, external CSS, or network data."
+    }
+  ],
+  "architectureDecisions": [
+    {
+      "id": "use-app-router",
+      "decision": "Use Next.js App Router with server pages and client islands.",
+      "status": "active",
+      "tradeoffs": [
+        "Good SSR/RSC performance opportunities.",
+        "Several whole-route client pages increase bundle size and client-side auth reliance."
+      ],
+      "evidence": [
+        "app/layout.tsx",
+        "app/account/upload/page.tsx",
+        "app/nfts/[contract]/[tokenId]/page.tsx"
+      ]
+    },
+    {
+      "id": "supabase-as-primary-backend",
+      "decision": "Use Supabase for auth, relational data, object storage, edge jobs, secrets, and scheduled sale polling.",
+      "status": "active",
+      "tradeoffs": [
+        "Keeps most backend state in one platform.",
+        "Local generated types and migrations must stay synchronized with hosted state."
+      ],
+      "evidence": [
+        "lib/supabase/server.ts",
+        "supabase/migrations",
+        "supabase/functions/poll-opensea-sales/index.ts"
+      ]
+    },
+    {
+      "id": "server-side-opensea-listing",
+      "decision": "Create OpenSea listings server-side using an admin wallet and OpenSea SDK.",
+      "status": "active",
+      "tradeoffs": [
+        "Centralizes listing approval and signing.",
+        "Requires sensitive credentials and robust environment validation."
+      ],
+      "evidence": [
+        "lib/opensea/listings.ts",
+        "app/api/sell/approve/route.ts"
+      ]
+    },
+    {
+      "id": "php-pricing-weth-settlement",
+      "decision": "Sellers enter PHP prices; listing flow converts to WETH for OpenSea.",
+      "status": "active",
+      "tradeoffs": [
+        "User-friendly local currency pricing.",
+        "Requires accurate exchange rate handling and clear price-change messaging."
+      ],
+      "evidence": [
+        "README.md",
+        "app/api/exchange-rate/route.ts",
+        "lib/constants/opensea-listing.ts"
+      ]
+    }
+  ],
+  "architecturalIssues": [
+    {
+      "id": "marketplace-redirect-drops-deep-links",
+      "severity": "high",
+      "category": "routing",
+      "title": "Middleware redirects all /marketplace paths to /gallery",
+      "details": "The middleware redirects both /marketplace and /marketplace/... to /gallery, which can make app/marketplace/[contract]/[tokenId] unreachable through direct navigation.",
+      "evidence": [
+        "middleware.ts",
+        "app/marketplace/[contract]/[tokenId]/page.tsx"
+      ]
+    },
+    {
+      "id": "duplicate-nft-detail-routes",
+      "severity": "medium",
+      "category": "routing",
+      "title": "Three NFT detail URL patterns exist",
+      "details": "NFT detail surfaces are split across /nft/[contractAddress]/[tokenId], /nfts/[contract]/[tokenId], and /marketplace/[contract]/[tokenId], increasing SEO, canonical URL, and maintenance risk.",
+      "evidence": [
+        "app/nft/[contractAddress]/[tokenId]/page.tsx",
+        "app/nfts/[contract]/[tokenId]/page.tsx",
+        "app/marketplace/[contract]/[tokenId]/page.tsx"
+      ]
+    },
+    {
+      "id": "parallel-upload-flows",
+      "severity": "medium",
+      "category": "product-logic",
+      "title": "Upload behavior is implemented in more than one place",
+      "details": "Account upload and dashboard NFT upload use different route/component implementations with overlapping pricing and validation concerns.",
+      "evidence": [
+        "app/account/upload/page.tsx",
+        "app/dashboard/nfts/upload/page.tsx",
+        "components/nft/nft-upload-form.tsx"
+      ]
+    },
+    {
+      "id": "parallel-wallet-stacks",
+      "severity": "medium",
+      "category": "integration",
+      "title": "Wallet integration uses multiple paradigms",
+      "details": "The app mixes Thirdweb, MetaMask SDK, and web3-react connectors/hooks, which increases bundle size and behavioral drift.",
+      "evidence": [
+        "app/providers.tsx",
+        "lib/connectors/metamask.ts",
+        "lib/hooks/useOpenSeaStream.ts",
+        "package.json"
+      ]
+    },
+    {
+      "id": "parallel-opensea-ethers-stacks",
+      "severity": "medium",
+      "category": "integration",
+      "title": "OpenSea code paths use both ethers v5 and ethers v6",
+      "details": "lib/services/opensea.ts and lib/opensea/listings.ts represent separate OpenSea/ethers entry points, making listing behavior harder to reason about.",
+      "evidence": [
+        "lib/services/opensea.ts",
+        "lib/opensea/listings.ts",
+        "package.json"
+      ]
+    },
+    {
+      "id": "type-errors-ignored",
+      "severity": "high",
+      "category": "build-safety",
+      "title": "Production build ignores TypeScript errors",
+      "details": "next.config.js sets typescript.ignoreBuildErrors to true, allowing production builds to ship with type errors.",
+      "evidence": [
+        "next.config.js"
+      ]
+    },
+    {
+      "id": "permissive-image-origins",
+      "severity": "medium",
+      "category": "security-performance",
+      "title": "Next/Image allows any HTTPS hostname",
+      "details": "next.config.js includes remotePatterns hostname '**', which reduces control over remote image origins.",
+      "evidence": [
+        "next.config.js"
+      ]
+    },
+    {
+      "id": "hardcoded-project-and-contract-values",
+      "severity": "medium",
+      "category": "configuration",
+      "title": "Supabase project URL and NFT contract are hardcoded in runtime paths",
+      "details": "The sale cron migration hardcodes a Supabase project URL, and listing/edge code duplicates a hardcoded NFT contract value instead of relying on a single environment source.",
+      "evidence": [
+        "supabase/migrations/20260428044500_schedule_sale_notification_cron.sql",
+        "lib/opensea/listings.ts",
+        "supabase/functions/poll-opensea-sales/index.ts",
+        "README.md"
+      ]
+    },
+    {
+      "id": "supabase-generated-types-drift",
+      "severity": "medium",
+      "category": "types",
+      "title": "Generated Supabase types lag newer tables and RPCs",
+      "details": "nft_sale_notifications and sale-notification RPCs are represented in migrations/edge code but not in lib/types/database.ts Functions/Tables.",
+      "evidence": [
+        "lib/types/database.ts",
+        "supabase/migrations/20260428043000_sale_notification_outbox.sql",
+        "supabase/functions/poll-opensea-sales/index.ts"
+      ]
+    },
+    {
+      "id": "client-storage-admin-behavior",
+      "severity": "medium",
+      "category": "security",
+      "title": "Browser Supabase API helper attempts bucket administration",
+      "details": "The storage helper attempts getBucket/createBucket through the browser client path, but bucket administration should generally be provisioned server-side or through setup scripts.",
+      "evidence": [
+        "lib/supabase/api.ts",
+        "setup-supabase.js"
+      ]
+    },
+    {
+      "id": "jwt-secret-fallback",
+      "severity": "critical",
+      "category": "security",
+      "title": "Wallet verification route has a fixed JWT secret fallback",
+      "details": "The verify-wallet route was observed to fall back to a fixed secret if AUTH_PRIVATE_KEY is missing, which would be unsafe in production.",
+      "evidence": [
+        "app/api/thirdweb/verify-wallet/route.ts"
+      ]
+    },
+    {
+      "id": "next-cron-deprecated",
+      "severity": "low",
+      "category": "operations",
+      "title": "Deprecated Next cron endpoint remains in the route tree",
+      "details": "The old /api/cron/poll-opensea-sales route returns 410 after sale polling moved to Supabase Edge + pg_cron; old schedulers must be removed.",
+      "evidence": [
+        "app/api/cron/poll-opensea-sales/route.ts",
+        "README.md"
+      ]
+    }
+  ],
+  "recommendedNextActions": [
+    {
+      "priority": "high",
+      "action": "Re-enable TypeScript build enforcement after fixing current type errors.",
+      "relatedIssues": [
+        "type-errors-ignored"
+      ]
+    },
+    {
+      "priority": "high",
+      "action": "Remove the fixed JWT secret fallback and fail closed when AUTH_PRIVATE_KEY is missing.",
+      "relatedIssues": [
+        "jwt-secret-fallback"
+      ]
+    },
+    {
+      "priority": "high",
+      "action": "Choose a canonical NFT detail route and update middleware redirects so marketplace deep links are intentional.",
+      "relatedIssues": [
+        "marketplace-redirect-drops-deep-links",
+        "duplicate-nft-detail-routes"
+      ]
+    },
+    {
+      "priority": "medium",
+      "action": "Consolidate account/dashboard upload flows behind one shared form and server action/API contract.",
+      "relatedIssues": [
+        "parallel-upload-flows"
+      ]
+    },
+    {
+      "priority": "medium",
+      "action": "Regenerate Supabase types from the active schema and include newer outbox/RPC definitions.",
+      "relatedIssues": [
+        "supabase-generated-types-drift"
+      ]
+    },
+    {
+      "priority": "medium",
+      "action": "Pick one wallet/web3 integration model and retire duplicate connectors where possible.",
+      "relatedIssues": [
+        "parallel-wallet-stacks",
+        "parallel-opensea-ethers-stacks"
+      ]
+    },
+    {
+      "priority": "medium",
+      "action": "Parameterize project URL and NFT contract values through environment or deployment-specific migrations.",
+      "relatedIssues": [
+        "hardcoded-project-and-contract-values"
+      ]
+    }
+  ]
+}
