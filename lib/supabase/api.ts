@@ -28,17 +28,18 @@ export async function getUser(userId: string): Promise<User | null> {
       try {
         console.log('User not found in database, checking auth data')
         
-        // Get user from auth
-        const { data: authUser } = await supabase.auth.getUser(userId)
+        // Get the currently authenticated user from Auth. The client cannot
+        // securely fetch arbitrary Auth users by id.
+        const { data: authUser } = await supabase.auth.getUser()
         
-        if (authUser?.user) {
+        if (authUser?.user && authUser.user.id === userId) {
           console.log('Creating user profile from auth data', authUser.user)
           
           // Create a new user record
           const userData = {
             id: authUser.user.id,
             email: authUser.user.email || '',
-            role: (authUser.user.user_metadata?.role as User['role']) || 'buyer',
+            role: 'buyer' as User['role'],
             username: authUser.user.user_metadata?.username || authUser.user.email?.split('@')[0] || 'user',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),

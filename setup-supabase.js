@@ -27,6 +27,7 @@ async function setupSupabase() {
     }
     
     const artworksBucketExists = existingBuckets.some(bucket => bucket.name === 'artworks');
+    const artworkImagesBucketExists = existingBuckets.some(bucket => bucket.name === 'artwork_images');
     const profilesBucketExists = existingBuckets.some(bucket => bucket.name === 'profiles');
     
     // Create artworks bucket if it doesn't exist
@@ -43,6 +44,21 @@ async function setupSupabase() {
       }
     } else {
       console.log('Artworks bucket already exists');
+    }
+
+    if (!artworkImagesBucketExists) {
+      console.log('Creating artwork_images bucket...');
+      const { error: artworkImagesError } = await supabase.storage.createBucket('artwork_images', {
+        public: true,
+      });
+      
+      if (artworkImagesError) {
+        console.error('Error creating artwork_images bucket:', artworkImagesError);
+      } else {
+        console.log('Created artwork_images bucket successfully');
+      }
+    } else {
+      console.log('Artwork images bucket already exists');
     }
     
     // Create profiles bucket if it doesn't exist
@@ -61,54 +77,8 @@ async function setupSupabase() {
       console.log('Profiles bucket already exists');
     }
     
-    // 2. Set up policies for buckets
-    console.log('Setting up storage policies...');
-    
-    // First check if policies exist
-    try {
-      // Anyone can view images
-      const { data: publicReadPolicies, error: policyError } = await supabase.storage.from('artworks').getPolicies();
-      
-      if (policyError) {
-        console.error('Error getting policies:', policyError);
-      } else {
-        const hasPublicReadPolicy = publicReadPolicies.some(policy => policy.name === 'Public Read Policy');
-        const hasAuthUploadPolicy = publicReadPolicies.some(policy => policy.name === 'Authenticated Upload Policy');
-        
-        // Create policies if they don't exist
-        if (!hasPublicReadPolicy) {
-          console.log('Creating public read policy...');
-          await supabase.storage.from('artworks').createPolicy('Public Read Policy', {
-            name: 'Public Read Policy',
-            definition: {
-              statements: [{ effect: 'ALLOW', actions: ['SELECT'], conditions: [] }],
-            },
-          });
-        } else {
-          console.log('Public read policy already exists');
-        }
-        
-        if (!hasAuthUploadPolicy) {
-          console.log('Creating authenticated upload policy...');
-          await supabase.storage.from('artworks').createPolicy('Authenticated Upload Policy', {
-            name: 'Authenticated Upload Policy',
-            definition: {
-              statements: [
-                { 
-                  effect: 'ALLOW', 
-                  actions: ['INSERT', 'UPDATE'], 
-                  conditions: [{ name: 'auth.role', operator: 'eq', value: 'authenticated' }] 
-                }
-              ],
-            },
-          });
-        } else {
-          console.log('Authenticated upload policy already exists');
-        }
-      }
-    } catch (error) {
-      console.error('Error setting up policies:', error);
-    }
+    // 2. Storage policies are maintained in SQL migrations.
+    console.log('Storage policies are managed by supabase/migrations/*_harden_auth_rls_storage.sql');
 
     // 3. Run SQL setup
     console.log('Running SQL setup...');

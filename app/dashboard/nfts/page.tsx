@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { UserNFTDashboard } from '@/components/nft/user-nft-dashboard'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { createClient } from '@/lib/supabase/server'
+import { requireAuthenticatedUser } from '@/lib/supabase/auth-utils'
 
 export const metadata = {
   title: 'Manage NFTs | Rack n Sold',
@@ -11,9 +12,10 @@ export const metadata = {
 
 export default async function NFTDashboardPage() {
   const supabase = await createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  
-  if (!session) {
+
+  try {
+    await requireAuthenticatedUser(supabase)
+  } catch {
     redirect('/auth/login?redirectTo=/dashboard/nfts')
   }
   

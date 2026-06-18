@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import type { Database } from '@/lib/types/database';
+import { AuthError, requireAuthenticatedUser } from '@/lib/supabase/auth-utils';
 
 export async function POST(request: NextRequest) {
   console.log('[Mint Request API] POST request received');
@@ -32,20 +33,9 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    // 1. Verify user authentication
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-    if (sessionError) {
-      console.error('[Mint Request API] Error getting session:', sessionError);
-      return NextResponse.json({ error: 'Failed to get session' }, { status: 500 });
-    }
-
-    if (!session?.user) {
-      console.warn('[Mint Request API] Unauthorized - No session found');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userId = session.user.id;
+    // 1. Verify user authentication against Supabase Auth.
+    const authUser = await requireAuthenticatedUser(supabase);
+    const userId = authUser.id;
     console.log('[Mint Request API] User authenticated:', userId);
 
     // 2. Parse request body
@@ -151,6 +141,10 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+
     console.error('[Mint Request API] Unexpected error:', error);
     return NextResponse.json({ 
       error: error instanceof Error ? error.message : 'Internal server error' 

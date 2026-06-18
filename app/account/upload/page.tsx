@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase/client'
 import { createArtwork, uploadArtworkImage } from '@/lib/supabase/api'
 import { User, InsertArtwork } from '@/lib/types'
 import { z } from 'zod'
@@ -10,23 +10,22 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import Image from 'next/image'
 import { redirect } from 'next/navigation'
+import { MIN_WETH_FOR_OPENSEA_LISTING } from '@/lib/constants/opensea-listing'
 
-const artworkSchema = z.object({
-  title: z.string().min(3, 'Title must be at least 3 characters'),
-  description: z.string().min(10, 'Description must be at least 10 characters'),
-  price: z.coerce.number().positive('Price must be a positive number'),
+const phpCurrencyFormatter = new Intl.NumberFormat('en-PH', {
+  style: 'currency',
+  currency: 'PHP',
 })
 
 // Define the type directly to avoid inference issues
 type ArtworkFormValues = {
   title: string;
   description: string;
-  price: number;
+  price?: number;
 }
 
 export default function UploadArtworkPage() {
   const router = useRouter()
-  const supabase = createClientComponentClient()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -34,21 +33,86 @@ export default function UploadArtworkPage() {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [phpPerWeth, setPhpPerWeth] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const minPricePhp = useMemo(() => {
+    if (phpPerWeth == null || !Number.isFinite(phpPerWeth) || phpPerWeth <= 0) return null
+    return MIN_WETH_FOR_OPENSEA_LISTING * phpPerWeth
+  }, [phpPerWeth])
+
+  const artworkSchema = useMemo(
+    () =>
+      z.object({
+        title: z.string().min(3, 'Title must be at least 3 characters'),
+        description: z.string().min(10, 'Description must be at least 10 characters'),
+        price: z.preprocess(
+          (value) => {
+            if (value === '' || value == null) return undefined
+            return Number(value)
+          },
+          z
+            .number({
+              required_error: 'Enter a valid price',
+              invalid_type_error: 'Enter a valid price',
+            })
+            .finite('Enter a valid price')
+            .positive('Price must be a positive number')
+            .superRefine((val, ctx) => {
+              if (minPricePhp == null) return
+              if (val < minPricePhp) {
+                ctx.addIssue({
+                  code: z.ZodIssueCode.custom,
+                  message: `Minimum price is ${phpCurrencyFormatter.format(minPricePhp)} (≈ ${MIN_WETH_FOR_OPENSEA_LISTING} WETH; required for OpenSea listings).`,
+                })
+              }
+            })
+        ),
+      }),
+    [minPricePhp]
+  )
 
   const {
     register,
     handleSubmit,
+    trigger,
     formState: { errors },
     reset,
-  } = useForm({
+  } = useForm<ArtworkFormValues>({
     resolver: zodResolver(artworkSchema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     defaultValues: {
       title: '',
       description: '',
-      price: 0,
+      price: undefined,
     },
   })
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/exchange-rate')
+        if (cancelled || !res.ok) return
+        const { phpPerWeth: rate } = await res.json()
+        if (typeof rate === 'number' && Number.isFinite(rate) && rate > 0) {
+          setPhpPerWeth(rate)
+        }
+      } catch {
+        if (!cancelled) setPhpPerWeth(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (minPricePhp != null) {
+      void trigger('price')
+    }
+  }, [minPricePhp, trigger])
 
   useEffect(() => {
     async function loadUser() {
@@ -117,6 +181,10 @@ export default function UploadArtworkPage() {
     if (!user) return
     if (!imageFile) {
       setError('Please upload an image for your artwork')
+      return
+    }
+    if (typeof data.price !== 'number') {
+      setError('Enter a valid price')
       return
     }
     
@@ -290,27 +358,32 @@ export default function UploadArtworkPage() {
               {/* Price */}
               <div>
                 <label htmlFor="price" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Price (ETH)
+                  Price (PHP)
                 </label>
+                {minPricePhp != null && (
+                  <p className="mb-1 text-xs text-gray-500 dark:text-gray-400">
+                    Minimum {phpCurrencyFormatter.format(minPricePhp)} (≈ {MIN_WETH_FOR_OPENSEA_LISTING} WETH — matches OpenSea&apos;s minimum order size).
+                  </p>
+                )}
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500 dark:text-gray-400">Ξ</span>
+                    <span className="text-gray-500 dark:text-gray-400">₱</span>
                   </div>
                   <input
                     id="price"
                     type="number"
-                    step="0.001"
-                    min="0"
+                    step="any"
+                    min={minPricePhp != null ? minPricePhp : undefined}
                     {...register('price')}
                     className="w-full pl-8 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="0.05"
+                    placeholder="0.00"
                   />
                 </div>
                 {errors.price && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.price.message}</p>
                 )}
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Set a price in ETH for your NFT artwork
+                  Set a PHP price for your NFT artwork. Decimal prices are allowed.
                 </p>
               </div>
               

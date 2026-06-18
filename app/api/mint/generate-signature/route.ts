@@ -7,6 +7,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import type { Database } from '@/lib/types/database';
+import { AuthError, requireAuthenticatedUser } from '@/lib/supabase/auth-utils';
 
 // Type definition for the expected request body
 interface MintRequestPayload {
@@ -80,19 +81,9 @@ export async function POST(request: NextRequest) {
   );
 
   try {
-    // 1. Get User Session using the SSR client
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-    if (sessionError) {
-      console.error("API Route: Error getting session:", sessionError);
-      return NextResponse.json({ error: 'Failed to get session' }, { status: 500 });
-    }
-
-    if (!session?.user) {
-      console.warn("API Route: Unauthorized access attempt - No session found");
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const userId = session.user.id;
+    // 1. Verify the user with Supabase Auth before signing any mint payload.
+    const authUser = await requireAuthenticatedUser(supabase);
+    const userId = authUser.id;
     console.log("API Route: User authenticated:", userId);
 
     // 2. Parse Request Body
@@ -170,6 +161,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(serializablePayload);
 
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+
     console.error("API Route: Error generating mint signature:", error);
     let statusCode = 500;
     let errorMessage = "Internal Server Error";

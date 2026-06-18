@@ -1,7 +1,9 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { revalidateTag } from 'next/cache';
+import { createClient } from '@/lib/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { AuthError, requireRole } from '@/lib/supabase/auth-utils';
+import type { Database } from '@/lib/types/database';
 
 // Define typing for NFT collection data
 interface NFTCollection {
@@ -17,11 +19,25 @@ interface NFTCollection {
   total_supply: number | null;
 }
 
+function createAdminClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Supabase service role client is not configured.');
+  }
+
+  return createSupabaseClient<Database>(supabaseUrl, serviceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+}
+
 export async function GET(req: NextRequest) {
   try {
-    // Create Supabase client with properly awaited cookies
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabase = await createClient();
     
     // Get query parameters
     const searchParams = req.nextUrl.searchParams;
@@ -69,7 +85,7 @@ export async function GET(req: NextRequest) {
     
     // If collection exists and isn't stale, return it unless refresh is requested
     if (cachedCollection && !refreshCache) {
-      const cacheDate = new Date(cachedCollection.last_fetched);
+      const cacheDate = new Date(cachedCollection.last_fetched ?? cachedCollection.updated_at ?? cachedCollection.created_at ?? 0);
       const now = new Date();
       const cacheAgeInDays = Math.floor((now.getTime() - cacheDate.getTime()) / (1000 * 60 * 60 * 24));
       
@@ -144,7 +160,8 @@ export async function GET(req: NextRequest) {
     const collection = openseaData.collections[0];
     
     // Store the collection in the database
-    const { error: upsertError } = await supabase
+    const supabaseAdmin = createAdminClient();
+    const { error: upsertError } = await supabaseAdmin
       .from('nft_collections')
       .upsert({
         slug: collection.slug,
@@ -198,9 +215,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    // Create Supabase client with properly awaited cookies
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabase = await createClient();
+    await requireRole(supabase, ['admin']);
+    const supabaseAdmin = createAdminClient();
     const body = await req.json();
     
     // Validate required fields
@@ -242,7 +259,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Store the collection
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('nft_collections')
       .upsert({
         slug: body.slug,
@@ -276,6 +293,10 @@ export async function POST(req: NextRequest) {
     
     return NextResponse.json({ success: true, collection: data });
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+
     console.error('Collection API error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

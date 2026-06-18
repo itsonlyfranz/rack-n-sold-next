@@ -58,10 +58,44 @@ CREATE POLICY "Anyone can view NFT collections"
   ON nft_collections FOR SELECT 
   USING (true);
 
--- Allow authenticated users to manage collections
-CREATE POLICY "Authenticated users can manage NFT collections" 
-  ON nft_collections FOR ALL 
-  USING (auth.role() = 'authenticated');
+-- Allow only admins to manage collections.
+-- Background cache jobs should use the service role key, which bypasses RLS server-side.
+CREATE POLICY "Admins can insert NFT collections"
+  ON nft_collections FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid()
+        AND users.role = 'admin'
+    )
+  );
+
+CREATE POLICY "Admins can update NFT collections"
+  ON nft_collections FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid()
+        AND users.role = 'admin'
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid()
+        AND users.role = 'admin'
+    )
+  );
+
+CREATE POLICY "Admins can delete NFT collections"
+  ON nft_collections FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid()
+        AND users.role = 'admin'
+    )
+  );
 `;
 
       return NextResponse.json({ 

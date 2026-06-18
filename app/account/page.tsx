@@ -1,10 +1,5 @@
 import { redirect } from 'next/navigation'
-// Use the SSR client for server components
-import { createServerClient, type CookieOptions } from '@supabase/ssr' 
-import { cookies } from 'next/headers'
 import Link from 'next/link'
-// We'll need to fetch the user directly using the server client
-// Removed: import { getUser } from '@/lib/supabase/api' 
 import { format } from 'date-fns' 
 import { 
   Card, 
@@ -18,37 +13,18 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import type { User } from '@/lib/types' // Import User type
 import { BackButton } from '@/components/common/back-button' // Import the new component
+import { createClient } from '@/lib/supabase/server'
+import { requireAuthenticatedUser } from '@/lib/supabase/auth-utils'
 
 // Server Component for the page
 export default async function AccountPage() {
-  // Await cookies() before using it - Next.js 15 requirement
-  const cookieStore = await cookies()
+  const supabase = await createClient()
+  let userId: string
 
-  // Use createServerClient for Server Component data fetching
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        // Use the resolved cookieStore here, ignoring linter warnings
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options })
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: '', ...options })
-        },
-      },
-    }
-  )
-
-  // Get authenticated session directly
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-  if (sessionError || !session) {
-    console.error("Failed to get authenticated session:", sessionError)
+  try {
+    const authUser = await requireAuthenticatedUser(supabase)
+    userId = authUser.id
+  } catch {
     redirect('/auth/login?redirectedFrom=/account')
   }
 
@@ -56,7 +32,7 @@ export default async function AccountPage() {
   const { data: user, error: userError } = await supabase
     .from('users')
     .select('*')
-    .eq('id', session.user.id)
+    .eq('id', userId)
     .single<User>()
 
   if (userError || !user) {

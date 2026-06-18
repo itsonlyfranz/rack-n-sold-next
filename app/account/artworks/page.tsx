@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase/client'
 import { User, Artwork } from '@/lib/types'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -10,7 +10,6 @@ import { formatPrice } from '@/lib/utils'
 
 export default function SellerArtworksPage() {
   const router = useRouter()
-  const supabase = createClientComponentClient()
   const [artworks, setArtworks] = useState<Artwork[]>([])
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
@@ -87,6 +86,8 @@ export default function SellerArtworksPage() {
   }, [supabase, router])
 
   const handleDeleteArtwork = async (artworkId: string) => {
+    if (!user?.id) return
+
     if (!confirm('Are you sure you want to delete this artwork? This action cannot be undone.')) {
       return
     }
@@ -97,7 +98,7 @@ export default function SellerArtworksPage() {
         .from('artworks')
         .delete()
         .eq('id', artworkId)
-        .eq('user_id', user?.id) // Safety check to ensure only the owner can delete
+        .eq('user_id', user.id) // Safety check to ensure only the owner can delete
       
       if (error) {
         throw new Error(error.message)
@@ -316,7 +317,7 @@ export default function SellerArtworksPage() {
                     )}
                     {artwork.status !== 'sold' && (
                       <button
-                        onClick={() => handleDeleteArtwork(artwork.id)}
+                        onClick={() => artwork.id && handleDeleteArtwork(artwork.id)}
                         className="flex-1 min-w-[4rem] px-3 py-1.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm font-medium rounded-lg text-center hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
                       >
                         Delete

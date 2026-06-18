@@ -1,12 +1,11 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import Image from 'next/image';
 import { Metadata } from 'next';
 import { MainLayout } from '@/components/layout/main-layout';
 import Link from 'next/link';
 import NFTCard from '@/components/nft/NFTCard';
+import { createClient } from '@/lib/supabase/server';
 
 interface NFTAsset {
   identifier: string;
@@ -92,9 +91,7 @@ export async function generateMetadata({ params }: CollectionPageProps): Promise
 
 // Function to fetch collection data
 async function getCollection(slug: string): Promise<NFTCollection | null> {
-  // Create a Supabase client
-  const cookieStore = cookies();
-  const supabase = createServerComponentClient({ cookies: () => cookieStore });
+  const supabase = await createClient();
   
   // First, try to get from Supabase
   const { data: cachedCollection, error: cacheError } = await supabase
@@ -105,7 +102,7 @@ async function getCollection(slug: string): Promise<NFTCollection | null> {
   
   // If we have cached data and it's fresh (less than 30 days old)
   if (cachedCollection) {
-    const cacheDate = new Date(cachedCollection.last_fetched);
+    const cacheDate = new Date(cachedCollection.last_fetched ?? cachedCollection.updated_at ?? cachedCollection.created_at ?? 0);
     const now = new Date();
     const cacheAgeInDays = Math.floor((now.getTime() - cacheDate.getTime()) / (1000 * 60 * 60 * 24));
     

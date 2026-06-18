@@ -5,6 +5,19 @@
 import { SupabaseClient, User } from '@supabase/supabase-js';
 import type { Database } from '@/lib/types/database';
 
+type AppUserRole = Database['public']['Tables']['users']['Row']['role'];
+type AppUserProfile = Database['public']['Tables']['users']['Row'];
+
+export class AuthError extends Error {
+  constructor(
+    message: string,
+    public readonly status = 401
+  ) {
+    super(message);
+    this.name = 'AuthError';
+  }
+}
+
 /**
  * Gets the authenticated user securely by calling the Supabase Auth server
  * This is the recommended way to get the current user instead of using session data
@@ -83,3 +96,42 @@ export function createSecureAuthListener(
   
   return data.subscription;
 } 
+
+export async function requireAuthenticatedUser(supabase: SupabaseClient<Database>) {
+  const { data: { user }, error } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    throw new AuthError('Unauthorized', 401);
+  }
+
+  return user;
+}
+
+export async function getAuthenticatedProfile(supabase: SupabaseClient<Database>) {
+  const user = await requireAuthenticatedUser(supabase);
+
+  const { data: profile, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', user.id)
+    .single();
+
+  if (error || !profile) {
+    throw new AuthError('Failed to load authenticated profile', 500);
+  }
+
+  return { authUser: user, profile: profile as AppUserProfile };
+}
+
+export async function requireRole(
+  supabase: SupabaseClient<Database>,
+  allowedRoles: AppUserRole[]
+) {
+  const { authUser, profile } = await getAuthenticatedProfile(supabase);
+
+  if (!allowedRoles.includes(profile.role)) {
+    throw new AuthError('Forbidden', 403);
+  }
+
+  return { authUser, profile };
+}

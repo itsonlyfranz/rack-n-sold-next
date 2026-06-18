@@ -3,7 +3,18 @@ import type { NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next()
+  let res = NextResponse.next({
+    request: req,
+  })
+
+  const redirectWithAuthCookies = (url: URL) => {
+    const redirectResponse = NextResponse.redirect(url)
+    res.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie)
+    })
+    redirectResponse.headers.set('Cache-Control', 'private, no-store')
+    return redirectResponse
+  }
   
   // Create a Supabase client using the server client
   const supabase = createServerClient(
@@ -11,19 +22,18 @@ export async function middleware(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get: (name) => req.cookies.get(name)?.value,
-        set: (name, value, options) => {
-          res.cookies.set({
-            name,
-            value,
-            ...options,
-          })
+        getAll() {
+          return req.cookies.getAll()
         },
-        remove: (name, options) => {
-          res.cookies.set({
-            name,
-            value: '',
-            ...options,
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => {
+            req.cookies.set(name, value)
+          })
+          res = NextResponse.next({
+            request: req,
+          })
+          cookiesToSet.forEach(({ name, value, options }) => {
+            res.cookies.set(name, value, options)
           })
         },
       },
@@ -42,11 +52,11 @@ export async function middleware(req: NextRequest) {
     // Handle JSON parsing errors from corrupted cookies
     if (err?.message?.includes('JSON') || err?.message?.includes('Unexpected token')) {
       console.warn('[Middleware] Corrupted auth cookie detected, clearing cookies')
-      // Clear corrupted auth cookies
-      const authCookieNames = ['sb-ukamngdajouofvynqjcn-auth-token', 'sb-auth-token']
-      authCookieNames.forEach(name => {
-        res.cookies.delete(name)
-      })
+      req.cookies.getAll()
+        .filter((cookie) => cookie.name === 'sb-auth-token' || /^sb-.+-auth-token$/.test(cookie.name))
+        .forEach(({ name }) => {
+          res.cookies.delete(name)
+        })
       userError = { message: 'Corrupted session cookie cleared' }
     } else {
       userError = err
@@ -66,25 +76,18 @@ export async function middleware(req: NextRequest) {
   // OR if the only error is "session missing" (which is expected) but we still have a user
   const hasAuthenticatedUser = !!user
   
-  // Only get session if we have an authenticated user (to minimize warnings)
-  let session = null
-  if (hasAuthenticatedUser) {
-    const { data: sessionData } = await supabase.auth.getSession()
-    session = sessionData.session
-  }
-
   // Get current URL path
   const url = req.nextUrl.pathname
 
   // Handle redirects BEFORE authentication checks
   // Redirect /marketplace to /gallery
   if (url === '/marketplace' || url.startsWith('/marketplace/')) {
-    return NextResponse.redirect(new URL('/gallery', req.url))
+    return redirectWithAuthCookies(new URL('/gallery', req.url))
   }
 
   // Redirect /account to /profile (consolidated pages)
   if (url === '/account') {
-    return NextResponse.redirect(new URL('/profile', req.url))
+    return redirectWithAuthCookies(new URL('/profile', req.url))
   }
 
   // Define protected paths
@@ -101,7 +104,7 @@ export async function middleware(req: NextRequest) {
   if ((isAdminPath || isAuthenticatedPath) && !hasAuthenticatedUser) {
     const redirectUrl = new URL('/auth/login', req.url)
     redirectUrl.searchParams.set('redirectedFrom', req.nextUrl.pathname)
-    return NextResponse.redirect(redirectUrl)
+    return redirectWithAuthCookies(redirectUrl)
   }
 
   // If user is authenticated, check for admin path access
@@ -117,11 +120,15 @@ export async function middleware(req: NextRequest) {
 
     // Redirect non-admins away from admin paths
     if (role !== 'admin') {
-      return NextResponse.redirect(new URL('/', req.url))
+      return redirectWithAuthCookies(new URL('/', req.url))
     }
   }
   
   // All other authenticated paths are accessible if logged in
+
+  if (hasAuthenticatedUser) {
+    res.headers.set('Cache-Control', 'private, no-store')
+  }
 
   return res
 }

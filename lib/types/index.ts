@@ -19,8 +19,7 @@ export type UpdateCartItem = Database['public']['Tables']['cart_items']['Update'
 export type ArtworkWithUser = Artwork & {
   user?: {
     id: string;
-    // The username field might not exist in the actual database
-    // Use email or another field as a fallback
+    username?: string | null;
     email?: string;
   }
 }

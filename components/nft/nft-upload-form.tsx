@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/hooks/use-auth'
@@ -10,6 +10,12 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/toast'
 import { v4 as uuidv4 } from 'uuid'
+import { MIN_WETH_FOR_OPENSEA_LISTING } from '@/lib/constants/opensea-listing'
+
+const phpCurrencyFormatter = new Intl.NumberFormat('en-PH', {
+  style: 'currency',
+  currency: 'PHP',
+})
 
 export function NFTUploadForm() {
   const { user } = useAuth()
@@ -18,9 +24,34 @@ export function NFTUploadForm() {
   const [price, setPrice] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const [phpPerWeth, setPhpPerWeth] = useState<number | null>(null)
   const supabase = createClient()
   const router = useRouter()
   const { toast } = useToast()
+
+  const minPricePhp = useMemo(() => {
+    if (phpPerWeth == null || !Number.isFinite(phpPerWeth) || phpPerWeth <= 0) return null
+    return MIN_WETH_FOR_OPENSEA_LISTING * phpPerWeth
+  }, [phpPerWeth])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/exchange-rate')
+        if (cancelled || !res.ok) return
+        const { phpPerWeth: rate } = await res.json()
+        if (typeof rate === 'number' && Number.isFinite(rate) && rate > 0) {
+          setPhpPerWeth(rate)
+        }
+      } catch {
+        if (!cancelled) setPhpPerWeth(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -32,6 +63,25 @@ export function NFTUploadForm() {
     e.preventDefault()
     
     if (!user || !file) return
+
+    const pricePhp = Number(price)
+    if (!Number.isFinite(pricePhp) || pricePhp <= 0) {
+      toast({
+        title: 'Invalid price',
+        description: 'Price must be a positive PHP amount.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (minPricePhp != null && pricePhp < minPricePhp) {
+      toast({
+        title: 'Price below minimum',
+        description: `Minimum price is ${phpCurrencyFormatter.format(minPricePhp)}.`,
+        variant: 'destructive',
+      })
+      return
+    }
     
     try {
       setIsUploading(true)
@@ -58,7 +108,7 @@ export function NFTUploadForm() {
         .insert({
           title,
           description,
-          price: parseFloat(price) || 0,
+          price: pricePhp,
           image_url: publicUrl,
           user_id: user.id,
           status: 'pending_mint', // New status for unminted NFTs
@@ -108,11 +158,17 @@ export function NFTUploadForm() {
       </div>
       
       <div>
-        <Label htmlFor="price">Price (ETH)</Label>
+        <Label htmlFor="price">Price (PHP)</Label>
+        {minPricePhp != null && (
+          <p className="mb-1 text-xs text-muted-foreground">
+            Minimum {phpCurrencyFormatter.format(minPricePhp)} (≈ {MIN_WETH_FOR_OPENSEA_LISTING} WETH)
+          </p>
+        )}
         <Input 
           id="price" 
           type="number" 
-          step="0.001"
+          step="any"
+          min={minPricePhp != null ? minPricePhp : undefined}
           value={price} 
           onChange={(e) => setPrice(e.target.value)}
           required

@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import type { Database } from '@/lib/types/database';
+import { AuthError, requireRole } from '@/lib/supabase/auth-utils';
 import { privateKeyToAccount } from "thirdweb/wallets";
 import { polygon } from "thirdweb/chains";
 import { createThirdwebClient, sendAndConfirmTransaction, getContractEvents } from "thirdweb";
@@ -64,31 +65,9 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    // 1. Verify user authentication
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-    if (sessionError || !session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userId = session.user.id;
-
-    // 2. Verify user is admin
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', userId)
-      .single();
-
-    if (userError || !userData) {
-      console.error('[Mint Approve API] Error fetching user:', userError);
-      return NextResponse.json({ error: 'Failed to verify user' }, { status: 500 });
-    }
-
-    if (userData.role !== 'admin') {
-      console.warn(`[Mint Approve API] Non-admin user ${userId} attempted to approve mint`);
-      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
-    }
+    // 1. Verify user authentication and admin role.
+    const { authUser } = await requireRole(supabase, ['admin']);
+    const userId = authUser.id;
 
     console.log('[Mint Approve API] Admin verified:', userId);
 
@@ -296,6 +275,10 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+
     console.error('[Mint Approve API] Unexpected error:', error);
     return NextResponse.json({ 
       error: error instanceof Error ? error.message : 'Internal server error' 

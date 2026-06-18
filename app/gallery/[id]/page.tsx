@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase/client'
 import { ArtworkWithUser, User } from '@/lib/types'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -10,7 +10,6 @@ import { formatPrice } from '@/lib/utils'
 
 export default function ArtworkDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter()
-  const supabase = createClientComponentClient()
   const [artwork, setArtwork] = useState<ArtworkWithUser | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
@@ -27,7 +26,7 @@ export default function ArtworkDetailPage({ params }: { params: { id: string } }
           .from('artworks')
           .select(`
             *,
-            user:user_id (
+            user:user_id!artworks_user_id_fkey (
               id,
               username,
               email
@@ -40,7 +39,7 @@ export default function ArtworkDetailPage({ params }: { params: { id: string } }
           throw new Error('Artwork not found')
         }
         
-        setArtwork(artworkData as ArtworkWithUser)
+        setArtwork(artworkData as unknown as ArtworkWithUser)
         
         // Check if user is logged in
         const { data: { session } } = await supabase.auth.getSession()
@@ -84,7 +83,7 @@ export default function ArtworkDetailPage({ params }: { params: { id: string } }
       return
     }
     
-    if (artwork?.sold) {
+    if (artwork?.status === 'sold') {
       setError('This artwork has already been sold')
       return
     }
@@ -225,13 +224,13 @@ export default function ArtworkDetailPage({ params }: { params: { id: string } }
             {/* Artwork Image */}
             <div className="relative aspect-square rounded-lg overflow-hidden">
               <Image
-                src={artwork.image_url}
+                src={artwork.image_url || '/images/placeholder.jpg'}
                 alt={artwork.title}
                 fill
                 className="object-cover"
                 priority
               />
-              {artwork.sold && (
+              {artwork.status === 'sold' && (
                 <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
                   <span className="px-4 py-2 bg-red-600 text-white font-bold rounded-full text-lg">
                     SOLD
@@ -274,13 +273,13 @@ export default function ArtworkDetailPage({ params }: { params: { id: string } }
                   <div className="text-right">
                     <p className="text-gray-500 dark:text-gray-400 text-sm">Created on</p>
                     <p className="text-gray-700 dark:text-gray-300">
-                      {new Date(artwork.created_at).toLocaleDateString()}
+                      {artwork.created_at ? new Date(artwork.created_at).toLocaleDateString() : '-'}
                     </p>
                   </div>
                 </div>
                 
                 <div className="flex space-x-4">
-                  {artwork.sold ? (
+                  {artwork.status === 'sold' ? (
                     <button
                       disabled
                       className="flex-1 px-6 py-3 bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400 font-medium rounded-lg cursor-not-allowed"
@@ -354,7 +353,7 @@ export default function ArtworkDetailPage({ params }: { params: { id: string } }
               <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
                 <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Status</h3>
                 <p className="text-gray-900 dark:text-white">
-                  {artwork.sold ? (
+                  {artwork.status === 'sold' ? (
                     <span className="text-red-600 dark:text-red-400">Sold</span>
                   ) : (
                     <span className="text-green-600 dark:text-green-400">Available</span>

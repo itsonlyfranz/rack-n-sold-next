@@ -24,7 +24,7 @@ const phpCurrencyFormatter = new Intl.NumberFormat('en-PH', {
 type ArtworkFormValues = {
   title: string;
   description: string;
-  price: number;
+  price?: number;
   artist: string;
   acceptTerms: boolean;
 };
@@ -135,18 +135,28 @@ export default function ArtistsClient() {
       z.object({
         title: z.string().min(3, 'Title must be at least 3 characters'),
         description: z.string().min(10, 'Description must be at least 10 characters'),
-        price: z.coerce
-          .number({ invalid_type_error: 'Enter a valid price' })
-          .positive('Price must be a positive number')
-          .superRefine((val, ctx) => {
-            if (minPricePhp == null) return;
-            if (val < minPricePhp) {
-              ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: `Minimum price is ${phpCurrencyFormatter.format(minPricePhp)} (≈ ${MIN_WETH_FOR_OPENSEA_LISTING} WETH; required for OpenSea listings).`,
-              });
-            }
-          }),
+        price: z.preprocess(
+          (value) => {
+            if (value === '' || value == null) return undefined;
+            return Number(value);
+          },
+          z
+            .number({
+              required_error: 'Enter a valid price',
+              invalid_type_error: 'Enter a valid price',
+            })
+            .finite('Enter a valid price')
+            .positive('Price must be a positive number')
+            .superRefine((val, ctx) => {
+              if (minPricePhp == null) return;
+              if (val < minPricePhp) {
+                ctx.addIssue({
+                  code: z.ZodIssueCode.custom,
+                  message: `Minimum price is ${phpCurrencyFormatter.format(minPricePhp)} (≈ ${MIN_WETH_FOR_OPENSEA_LISTING} WETH; required for OpenSea listings).`,
+                });
+              }
+            })
+        ),
         artist: z.string().min(3, 'Artist name must be at least 3 characters'),
         acceptTerms: z.boolean().refine((v) => v === true, {
           message: 'You must accept the Terms of Service and Privacy Policy to upload artwork.',
@@ -164,10 +174,12 @@ export default function ArtistsClient() {
     reset,
   } = useForm<ArtworkFormValues>({
     resolver: zodResolver(artworkSchema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     defaultValues: {
       title: '',
       description: '',
-      price: 0,
+      price: undefined,
       artist: '',
       acceptTerms: false,
     },
@@ -325,6 +337,10 @@ export default function ArtistsClient() {
 
     if (!imageFile) {
       setError('Please upload an image for your artwork');
+      return;
+    }
+    if (typeof data.price !== 'number') {
+      setError('Enter a valid price');
       return;
     }
     
@@ -637,7 +653,7 @@ export default function ArtistsClient() {
                   <input
                     id="price"
                     type="number"
-                    step="0.01"
+                    step="any"
                     min={minPricePhp != null ? minPricePhp : undefined}
                     {...register('price')}
                     className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-lg shadow-sm 

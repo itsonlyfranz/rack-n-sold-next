@@ -15,9 +15,6 @@ export function useAuth() {
 
   // Function to fetch the full user profile from the DB or create it if missing
   const fetchProfile = useCallback(async (authenticatedAuthUser: AuthUser) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-auth.ts:18',message:'fetchProfile ENTRY',data:{userId:authenticatedAuthUser.id,userEmail:authenticatedAuthUser.email},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     try {
       // Try fetching the profile from the database
       const { data: profileData, error: profileDbError } = await supabase
@@ -27,9 +24,6 @@ export function useAuth() {
         .single<User>()
 
       if (profileData) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-auth.ts:26',message:'fetchProfile SUCCESS - profile found',data:{userId:profileData.id,role:profileData.role},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         setUser(profileData); // Profile found, update state
         return; // Exit early
       }
@@ -50,7 +44,7 @@ export function useAuth() {
             status: null,
             created_at: authenticatedAuthUser.created_at || new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            role: (authenticatedAuthUser.user_metadata?.role as User['role']) || 'buyer',
+            role: 'buyer',
             wallet_address: null,
             wallet_connected_at: null,
             wallet_chain_id: null,
@@ -67,7 +61,7 @@ export function useAuth() {
             address: null,
             profile_picture: null,
             status: 'active',
-            role: (authenticatedAuthUser.user_metadata?.role as User['role']) || 'buyer',
+            role: 'buyer',
             created_at: authenticatedAuthUser.created_at || new Date().toISOString(),
             updated_at: new Date().toISOString(),
             wallet_address: null,
@@ -113,7 +107,7 @@ export function useAuth() {
             address: null,
             profile_picture: null,
             status: 'active',
-            role: (authenticatedAuthUser.user_metadata?.role as User['role']) || 'buyer',
+            role: 'buyer',
             created_at: authenticatedAuthUser.created_at || new Date().toISOString(),
             updated_at: new Date().toISOString(),
             wallet_address: null,
@@ -134,7 +128,7 @@ export function useAuth() {
           address: null,
           profile_picture: null,
           status: 'active',
-          role: (authenticatedAuthUser.user_metadata?.role as User['role']) || 'buyer',
+          role: 'buyer',
           created_at: authenticatedAuthUser.created_at || new Date().toISOString(),
           updated_at: new Date().toISOString(),
           wallet_address: null,
@@ -144,9 +138,6 @@ export function useAuth() {
         setUser(fallbackUser);
       }
     } catch (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-auth.ts:140',message:'fetchProfile ERROR',data:{error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       console.error('Unexpected error in profile fetch process:', error);
       // Fallback to auth data in case of unexpected errors
       const fallbackUser: User = {
@@ -160,7 +151,7 @@ export function useAuth() {
           status: null,
           created_at: authenticatedAuthUser.created_at || new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          role: (authenticatedAuthUser.user_metadata?.role as User['role']) || 'buyer',
+          role: 'buyer',
           wallet_address: null,
           wallet_connected_at: null,
           wallet_chain_id: null,
@@ -283,9 +274,6 @@ export function useAuth() {
         }
       } finally {
         if (isMounted) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-auth.ts:274',message:'checkUser COMPLETE - setting isLoading=false',data:{hasUser:!!user},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
           setIsLoading(false);
         }
       }
@@ -312,9 +300,6 @@ export function useAuth() {
     const setupListener = async () => {
       const { data } = supabase.auth.onAuthStateChange(
         async (event, session) => {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-auth.ts:294',message:'onAuthStateChange triggered',data:{event,hasSession:!!session,userId:session?.user?.id||null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
           if (!isMounted) return;
         
           // Skip loading state for token refresh if user hasn't changed
@@ -369,9 +354,6 @@ export function useAuth() {
           } finally {
             // Only set loading to false if we set it to true earlier
             if (isMounted && didSetLoading) {
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/be26f89b-8ca7-4b20-b033-73b9c3b25c07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-auth.ts:348',message:'onAuthStateChange COMPLETE - setting isLoading=false',data:{event,didSetLoading},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-              // #endregion
               setIsLoading(false);
             }
           }

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/hooks/use-auth'
 import { useCartStore } from '@/lib/store/cart'
 import { cn } from '@/lib/utils'
@@ -13,6 +14,7 @@ import { ThemeToggle } from '@/components/theme/theme-toggle'
 export function Header() {
   const { user, signOut, isLoading: authLoading } = useAuth()
   const activeAccount = useActiveAccount()
+  const pathname = usePathname()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const { items } = useCartStore()
   const [isMounted, setIsMounted] = useState(false)
@@ -48,10 +50,20 @@ export function Header() {
   }
   
   const cartCount = isMounted ? items.length : 0
+  const getNavLinkClass = (href: string) =>
+    cn(
+      "rounded-md px-3 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-emerald-950/70 hover:text-emerald-200",
+      pathname === href && "bg-emerald-950/80 text-emerald-200"
+    )
+  const getMobileNavLinkClass = (href: string) =>
+    cn(
+      "rounded-md px-3 py-2 text-base font-medium text-gray-300 transition-colors hover:bg-emerald-950/70 hover:text-emerald-200",
+      pathname === href && "bg-emerald-950/80 text-emerald-200"
+    )
   
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-gray-800 bg-gray-900/80 backdrop-blur-sm">
-      <div className="container mx-auto px-4 py-3">
+    <header className="sticky top-0 z-50 w-full border-b border-emerald-900/40 bg-gray-950/85 backdrop-blur-sm">
+      <div className="mx-auto flex h-16 w-full max-w-screen-2xl flex-col justify-center px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="relative flex h-9 w-[min(220px,calc(100vw-10rem))] shrink-0 items-center sm:h-10 sm:w-[min(260px,calc(100vw-12rem))]">
@@ -69,20 +81,22 @@ export function Header() {
           <nav className="hidden md:flex md:items-center md:space-x-6">
             <Link
               href="/gallery"
-              className="text-sm text-gray-300 hover:text-white"
+              className={getNavLinkClass('/gallery')}
+              aria-current={pathname === '/gallery' ? 'page' : undefined}
             >
               Gallery
             </Link>
             {/* Temporarily hidden */}
             {/* <Link
               href="/gallery"
-              className="text-sm text-gray-300 hover:text-white"
+              className="text-sm text-gray-300 transition-colors hover:text-emerald-300"
             >
               Gallery
             </Link> */}
             <Link
               href="/artists"
-              className="text-sm text-gray-300 hover:text-white"
+              className={getNavLinkClass('/artists')}
+              aria-current={pathname === '/artists' ? 'page' : undefined}
             >
               Artists
             </Link>
@@ -91,7 +105,11 @@ export function Header() {
             {user?.role === 'admin' && (
               <Link
                 href="/admin/mint-requests"
-                className="text-sm text-emerald-400 hover:text-emerald-300 font-medium"
+                className={cn(
+                  "rounded-md px-3 py-2 text-sm font-medium text-emerald-300 transition-colors hover:bg-emerald-950/70 hover:text-emerald-100",
+                  pathname.startsWith('/admin') && "bg-emerald-950/80 text-emerald-100"
+                )}
+                aria-current={pathname.startsWith('/admin') ? 'page' : undefined}
               >
                 Admin Dashboard
               </Link>
@@ -115,7 +133,7 @@ export function Header() {
                 <div className="relative">
                   <button
                     onClick={toggleMenu}
-                    className="flex items-center space-x-2 rounded-full bg-gray-800 px-3 py-1.5 text-sm text-white hover:bg-gray-700"
+                    className="flex items-center space-x-2 rounded-full border border-emerald-900/40 bg-gray-900 px-3 py-1.5 text-sm text-white transition-colors hover:bg-emerald-950/70"
                   >
                     <div className="flex flex-col items-start">
                       {user && (
@@ -147,7 +165,7 @@ export function Header() {
                     </svg>
                   </button>
                 {isMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 origin-top-right rounded-md bg-gray-800 py-1 shadow-lg ring-1 ring-black ring-opacity-5">
+                  <div className="absolute right-0 mt-2 w-56 origin-top-right rounded-md border border-emerald-900/40 bg-gray-950 py-1 shadow-lg shadow-emerald-950/30 ring-1 ring-black ring-opacity-5">
                     {/* Account Info */}
                     <div className="px-4 py-2 border-b border-gray-700">
                       {user && (
@@ -166,7 +184,7 @@ export function Header() {
                     <Link
                       href="/profile"
                       onClick={closeMenu}
-                      className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+                      className="block px-4 py-2 text-sm text-gray-300 transition-colors hover:bg-emerald-950/70 hover:text-emerald-200"
                     >
                       Profile
                     </Link>
@@ -199,7 +217,7 @@ export function Header() {
                       <div className="border-t border-gray-700 mt-1 pt-1">
                         <button
                           onClick={handleSignOut}
-                          className="block w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+                          className="block w-full px-4 py-2 text-left text-sm text-gray-300 transition-colors hover:bg-emerald-950/70 hover:text-emerald-200"
                         >
                           Sign Out
                         </button>
@@ -219,13 +237,21 @@ export function Header() {
                 /> */}
                 <Link
                   href="/auth/login"
-                  className="rounded-md bg-gray-800 px-4 py-2 text-sm text-white hover:bg-gray-700"
+                  className={cn(
+                    "rounded-md border border-emerald-900/40 bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-950/70 hover:text-emerald-100",
+                    pathname === '/auth/login' && "border-emerald-700 bg-emerald-950/80 text-emerald-100"
+                  )}
+                  aria-current={pathname === '/auth/login' ? 'page' : undefined}
                 >
                   Sign In
                 </Link>
                 <Link
                   href="/auth/signup"
-                  className="rounded-md bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700"
+                  className={cn(
+                    "rounded-md bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:from-emerald-500 hover:to-teal-500",
+                    pathname === '/auth/signup' && "from-emerald-500 to-teal-500"
+                  )}
+                  aria-current={pathname === '/auth/signup' ? 'page' : undefined}
                 >
                   Sign Up
                 </Link>
@@ -287,7 +313,7 @@ export function Header() {
             {/* Mobile menu button */}
             <button
               onClick={toggleMenu}
-              className="text-gray-300 hover:text-white"
+              className="text-gray-300 transition-colors hover:text-emerald-300"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -323,7 +349,8 @@ export function Header() {
               <Link
                 href="/gallery"
                 onClick={closeMenu}
-                className="px-3 py-2 text-base text-gray-300 hover:bg-gray-800 hover:text-white"
+                className={getMobileNavLinkClass('/gallery')}
+                aria-current={pathname === '/gallery' ? 'page' : undefined}
               >
                 Gallery
               </Link>
@@ -331,14 +358,15 @@ export function Header() {
               {/* <Link
                 href="/gallery"
                 onClick={closeMenu}
-                className="px-3 py-2 text-base text-gray-300 hover:bg-gray-800 hover:text-white"
+                className="px-3 py-2 text-base text-gray-300 transition-colors hover:bg-emerald-950/70 hover:text-emerald-200"
               >
                 Gallery
               </Link> */}
               <Link
                 href="/artists"
                 onClick={closeMenu}
-                className="px-3 py-2 text-base text-gray-300 hover:bg-gray-800 hover:text-white"
+                className={getMobileNavLinkClass('/artists')}
+                aria-current={pathname === '/artists' ? 'page' : undefined}
               >
                 Artists
               </Link>
@@ -368,7 +396,7 @@ export function Header() {
                     <Link
                       href="/profile"
                       onClick={closeMenu}
-                      className="block rounded-md px-3 py-2 text-base text-gray-300 hover:bg-gray-800 hover:text-white"
+                      className="block rounded-md px-3 py-2 text-base text-gray-300 transition-colors hover:bg-emerald-950/70 hover:text-emerald-200"
                     >
                       Profile
                     </Link>
@@ -382,7 +410,7 @@ export function Header() {
                     </Link> */}
                     <button
                       onClick={handleSignOut}
-                      className="block w-full rounded-md px-3 py-2 text-left text-base text-gray-300 hover:bg-gray-800 hover:text-white"
+                      className="block w-full rounded-md px-3 py-2 text-left text-base text-gray-300 transition-colors hover:bg-emerald-950/70 hover:text-emerald-200"
                     >
                       Sign Out
                     </button>
@@ -394,14 +422,19 @@ export function Header() {
                     <Link
                       href="/auth/login"
                       onClick={closeMenu}
-                      className="block rounded-md px-3 py-2 text-base text-gray-300 hover:bg-gray-800 hover:text-white"
+                      className={getMobileNavLinkClass('/auth/login')}
+                      aria-current={pathname === '/auth/login' ? 'page' : undefined}
                     >
                       Sign In
                     </Link>
                     <Link
                       href="/auth/signup"
                       onClick={closeMenu}
-                      className="block rounded-md bg-emerald-600 px-3 py-2 text-base text-white hover:bg-emerald-700"
+                      className={cn(
+                        "block rounded-md bg-gradient-to-r from-emerald-600 to-teal-600 px-3 py-2 text-base font-medium text-white transition-colors hover:from-emerald-500 hover:to-teal-500",
+                        pathname === '/auth/signup' && "from-emerald-500 to-teal-500"
+                      )}
+                      aria-current={pathname === '/auth/signup' ? 'page' : undefined}
                     >
                       Sign Up
                     </Link>

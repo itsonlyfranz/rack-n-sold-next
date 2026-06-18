@@ -64,9 +64,9 @@ export function LoginForm() {
   }
   
   return (
-    <div className="w-full max-w-md mx-auto p-6 bg-gray-800 rounded-lg shadow-md">
+    <div className="mx-auto w-full max-w-md rounded-2xl border border-emerald-900/40 bg-gray-900/80 p-6 text-gray-100 shadow-xl shadow-emerald-950/30 backdrop-blur-sm">
       {successMessage && (
-        <Alert className="mb-4 bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300">
+        <Alert className="mb-4 border-emerald-700/50 bg-emerald-950/40 text-emerald-100">
           <AlertTitle>Success</AlertTitle>
           <AlertDescription>{successMessage}</AlertDescription>
         </Alert>
@@ -81,12 +81,12 @@ export function LoginForm() {
       
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email" className="text-gray-200">Email</Label>
           <Input
             id="email"
             type="email"
             placeholder="you@example.com"
-            className="w-full"
+            className="w-full border-emerald-900/50 bg-gray-950 text-white placeholder:text-gray-500 focus-visible:ring-emerald-500"
             disabled={isLoading}
             {...register('email')}
           />
@@ -96,12 +96,12 @@ export function LoginForm() {
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password" className="text-gray-200">Password</Label>
           <Input
             id="password"
             type="password"
             placeholder="••••••••"
-            className="w-full"
+            className="w-full border-emerald-900/50 bg-gray-950 text-white placeholder:text-gray-500 focus-visible:ring-emerald-500"
             disabled={isLoading}
             {...register('password')}
           />
@@ -111,24 +111,24 @@ export function LoginForm() {
         </div>
         
         <div className="flex items-center justify-between">
-          <Link href="/auth/forgot" className="text-sm text-emerald-400 hover:underline">
+          <Link href="/auth/forgot" className="text-sm text-emerald-300 transition-colors hover:text-emerald-200 hover:underline">
             Forgot password?
           </Link>
         </div>
 
         <Button
           type="submit"
-          className="w-full bg-emerald-600 hover:bg-emerald-700"
+          className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-500 hover:to-teal-500"
           disabled={isLoading}
         >
           {isLoading ? 'Signing in...' : 'Sign In'}
         </Button>
       </form>
       
-      <div className="mt-4 text-center text-sm">
+      <div className="mt-4 text-center text-sm text-gray-400">
         <p>
           Don't have an account?{' '}
-          <Link href="/auth/signup" className="text-emerald-400 hover:underline">
+          <Link href="/auth/signup" className="text-emerald-300 transition-colors hover:text-emerald-200 hover:underline">
             Sign up
           </Link>
         </p>
